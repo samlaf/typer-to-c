@@ -138,15 +138,9 @@ let _ = add_binary_iop "+"  (+);
         add_binary_iop "*" ( * );
         add_binary_iop "/"  (/)
 
-let make_symbol loc depth args_val  =
-    (* symbol is a simple string *)
-    let lxp = match args_val with
-        | [r] -> r
-        | _ -> error loc ("symbol_ expects 1 argument") in
-
-        match lxp with
-            | Vstring(str) -> Vsexp(Symbol(loc, str))
-            | _ -> value_error loc lxp "symbol_ expects one string as argument"
+let make_symbol loc depth args_val  = match args_val with
+  | [Vstring str] -> Vsexp (Symbol (loc, str))
+  | _ -> error loc "symbol_ expects one string as argument"
 
 let make_node loc depth args_val    =
 
@@ -170,26 +164,22 @@ let make_node loc depth args_val    =
 
         Vsexp(Node(op, s))
 
-let make_string loc depth args_val  =
-    let lxp = match args_val with
-        | [r] -> r
-        | _ -> error loc "string_ expects 1 argument" in
+let make_string loc depth args_val  = match args_val with
+  | [Vstring str] -> Vsexp (String (loc, str))
+  | _ -> error loc "string_ expects one string as argument"
 
-        match lxp with
-            | Vstring(str) -> Vsexp(String(loc, str))
-            | _ -> value_error loc lxp "string_ expects one string as argument"
+let make_integer loc depth args_val = match args_val with
+  | [Vint (str)] -> Vsexp (Integer (loc, str))
+  | _ -> error loc "integer_ expects one integer as argument"
 
-let make_integer loc depth args_val =
-    let lxp = match args_val with
-        | [r] -> r
-        | _ -> error loc "integer_ expects 1 argument" in
 
-        match lxp with
-            | Vint(str) -> Vsexp(Integer(loc, str))
-            | _ -> value_error loc lxp "integer_ expects one string as argument"
+let make_float loc depth args_val   = match args_val with
+  | [Vfloat x] -> Vsexp (Float (loc, x))
+  | _ -> error loc "float_ expects one float as argument"
 
-let make_float loc depth args_val   = Vdummy
-let make_block loc depth args_val   = Vdummy
+(* let make_block loc depth args_val   = match args_val with
+ *   | [Vblock b] -> Vsexp (Block (loc, b))
+ *   | _ -> error loc "float_ expects one block as argument" *)
 
 (* FIXME: We're not using predef here.  This will break if we change
  * the definition of `Bool` in builtins.typer.  *)
@@ -197,20 +187,17 @@ let ttrue = Vcons ((dloc, "true"), [])
 let tfalse = Vcons ((dloc, "false"), [])
 let o2v_bool b = if b then ttrue else tfalse
 
-let string_eq loc depth args_val =
-    match args_val with
-        | [Vstring(s1); Vstring(s2)] -> o2v_bool (s1 = s2)
-        | _ -> error loc "string_eq expects 2 strings"
+let string_eq loc depth args_val = match args_val with
+  | [Vstring s1; Vstring s2] -> o2v_bool (s1 = s2)
+  | _ -> error loc "string_eq expects 2 strings"
 
-let int_eq loc depth args_val =
-    match args_val with
-        | [Vint(s1); Vint(s2)] -> o2v_bool (s1 = s2)
-        | _ -> error loc "int_eq expects 2 integer"
+let int_eq loc depth args_val = match args_val with
+  | [Vint i1; Vint i2] -> o2v_bool (i1 = i2)
+  | _ -> error loc "int_eq expects 2 integers"
 
-let sexp_eq loc depth args_val =
-    match args_val with
-    | [Vsexp (s1); Vsexp (s2)] -> o2v_bool (sexp_equal s1 s2)
-    | _ -> error loc "sexp_eq expects 2 sexp"
+let sexp_eq loc depth args_val = match args_val with
+  | [Vsexp (s1); Vsexp (s2)] -> o2v_bool (sexp_equal s1 s2)
+  | _ -> error loc "sexp_eq expects 2 sexps"
 
 let open_impl loc depth args_val =
 
@@ -225,27 +212,21 @@ let open_impl loc depth args_val =
         | "w" -> Vout(open_out file)
         | _ -> error loc "wrong open mode")
 
-let read_impl loc depth args_val =
+let read_impl loc depth args_val = match args_val with
+  (* FIXME: Either rename it to "readline" and drop the second arg,
+   * or actually pay attention to the second arg.  *)
+  | [Vin channel; Vint n] -> Vstring (input_line channel)
+  | _ -> List.iter (fun v -> value_print v; print_string "\n") args_val;
+         error loc "read expects an in_channel"
 
-  let channel = match args_val with
-    | [Vin(c); _] -> c
-    | _ ->
-      List.iter (fun v -> value_print v; print_string "\n") args_val;
-        error loc "read expects an in_channel" in
 
-  let line = input_line channel in
-    Vstring(line)
+let write_impl loc depth args_val = match args_val with
+  | [Vout channel; Vstring msg] -> fprintf channel "%s" msg;
+                                   (* FIXME: This should be the unit value!  *)
+                                   Vundefined
+  | _ -> List.iter (fun v -> value_print v) args_val;
+         error loc "write expects an out_channel and a string"
 
-let write_impl loc depth args_val =
-
-  let channel, msg = match args_val with
-    | [Vout(c); Vstring(msg)] -> c, msg
-    | _ ->
-      List.iter (fun v -> value_print v) args_val;
-        error loc "read expects an out_channel" in
-
-    fprintf channel "%s" msg;
-      Vdummy
 
 let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type) =
 
@@ -267,7 +248,6 @@ let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type
         | Imm(Integer (_, i))       -> Vint(i)
         | Imm(String (_, s))        -> Vstring(s)
         | Imm(sxp)                  -> Vsexp(sxp)
-        | Inductive (_, _)          -> Vinductive
         | Cons (label)              -> Vcons (label, [])
         | Lambda ((_, n), lxp)      -> Closure(n, lxp, ctx)
         | Builtin ((_, str))        -> Vbuiltin(str)
@@ -292,7 +272,17 @@ let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type
         | Case (loc, target, pat, dflt)
           -> (eval_case ctx trace loc target pat dflt)
 
-        | Type -> Vcons((tloc, "Unit"), [])
+        (* FIXME: Here, we'd want to apply `ctx` to `e`, but we can't
+         * apply a runtime-ctx to a lexp!
+         * E.g. say we have `λt ≡> Ind (arg : t)`: by the time we get here,
+         * Our `Type` carries `Ind (arg : t)` but `t` is not in `ctx`!
+         * So we should either use an elexp instead of a lexp,
+         * or somehow recover a lexp-ctx from the runtime-ctx (maybe
+         * with extra info that `Type` could carry),
+         * or find another trick.
+         * Hence, the `e` carried by `Vtype` is just indicative and not
+         * something we can use.  *)
+        | Type e -> Vtype e
 
 
 and eval_var ctx lxp v =
@@ -350,12 +340,15 @@ and eval_call loc unef i f args =
                       buildbody (arity - nargs - 1),
                       buildctx args Myers.nil)
 
-       with Not_found ->
-            error loc ("Requested Built-in `" ^ name ^ "` does not exist")
-          | e -> error loc ("Exception thrown from primitive `" ^ name ^"`"))
+        with Not_found
+             -> error loc ("Requested Built-in `" ^ name ^ "` does not exist")
+           | e -> error loc ("Exception thrown from primitive `" ^ name ^"`"))
 
-  (* Type Alias is not a fun call, we just ignore it*)
-  | Vinductive, _ -> Vundefined
+  | Vtype e, _
+   (* We may call a Vlexp e.g. for "x = Map Int String".
+    * FIXME: The arg will sometimes be a Vlexp but not always, so this is
+    * really just broken!  *)
+    -> Vtype (L.mkCall (e, [(Aexplicit, Var ((dummy_location, "?"), -1))]))
   | _ -> value_fatal loc f "Trying to call a non-function!"
 
 and eval_case ctx i loc target pat dflt =
@@ -409,7 +402,7 @@ and _eval_decls (decls: (vname * elexp) list)
 
     (* Read declarations once and push them *)
     let nctx = List.fold_left (fun ctx ((_, name), _) ->
-      add_rte_variable (Some name) Vdummy ctx) ctx decls in
+      add_rte_variable (Some name) Vundefined ctx) ctx decls in
 
     List.iteri (fun idx ((_, name), lxp) ->
       let v = _eval lxp nctx i in
@@ -559,7 +552,7 @@ and print_eval_trace trace =
 let y_operator loc depth args =
   match args with
   | [f] -> let aname = "<anon>" in
-          let yf_ref = ref Vdummy in
+          let yf_ref = ref Vundefined in
           let yf = Closure(aname,
                            Call (Var ((dloc, "f"), 1),
                                  [Var ((dloc, "yf"), 2);
@@ -579,7 +572,7 @@ let nop_fun loc _ vs = match vs with
 let register_built_functions () =
   List.iter (fun (name, f, arity) -> add_builtin_function name f arity)
             [
-              ("block_"        , make_block, 1);
+              (* ("block_"        , make_block, 1); *)
               ("symbol_"       , make_symbol, 1);
               ("string_"       , make_string, 1);
               ("integer_"      , make_integer, 1);

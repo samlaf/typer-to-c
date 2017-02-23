@@ -35,6 +35,7 @@ open Sexp (* Sexp type *)
 open Pexp (* Aexplicit *)
 
 module U = Util
+module L = Lexp
 
 type vname = U.vname
 type vref = U.vref
@@ -55,10 +56,7 @@ type elexp =
     | Case of U.location * elexp
               * (U.location * (vname option) list * elexp) SMap.t
               * (vname option * elexp) option
-    (* Type place-holder just in case *)
-    | Type
-    (* Inductive takes a slot in the env that is why it need to be here *)
-    | Inductive of U.location * label
+    | Type of L.lexp
 
 let rec elexp_location e =
     match e with
@@ -70,8 +68,7 @@ let rec elexp_location e =
         | Call (f,_) -> elexp_location f
         | Cons ((l,_)) -> l
         | Case (l,_,_,_) -> l
-        | Inductive(l, _) -> l
-        | Type -> U.dummy_location
+        | Type e -> L.lexp_location e
 
 
 let elexp_name e =
@@ -82,10 +79,9 @@ let elexp_name e =
     | Call _ -> "Call"
     | Cons _ -> "Cons"
     | Case _ -> "Case"
-    | Type   -> "Type"
+    | Type _ -> "Type"
     | Lambda    _ -> "Lambda"
     | Builtin   _ -> "Builtin"
-    | Inductive _ -> "Inductive"
 
 let rec elexp_print lxp = print_string (elexp_string lxp)
 and elexp_string lxp =
@@ -132,7 +128,4 @@ and elexp_string lxp =
         | Case(_, t, cases, default) ->
             "case " ^ (elexp_string t) ^ (str_cases cases) ^ (maybe_str default)
 
-        | Inductive(_, (_, s)) ->
-            "typecons " ^ s
-
-        | Type -> "Type "
+        | Type e -> "Type(" ^ L.lexp_string e ^ ") "

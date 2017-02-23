@@ -3,7 +3,7 @@
  *
  * ---------------------------------------------------------------------------
  *
- *      Copyright (C) 2011-2016  Free Software Foundation, Inc.
+ *      Copyright (C) 2011-2017  Free Software Foundation, Inc.
  *
  *   Author: Pierre Delaunay <pierre.delaunay@hec.ca>
  *   Keywords: languages, lisp, dependent types.
@@ -56,14 +56,14 @@ let _ = (add_test "ENV" "Set Variables" (fun () ->
         let n = (List.length var) - 1 in
 
         let rctx = List.fold_left (fun ctx (n, t, _) ->
-            add_rte_variable n (Vdummy) ctx)
+            add_rte_variable n Vundefined ctx)
             rctx var in
 
         print_rte_ctx rctx;
 
         let rctx, _ = List.fold_left
                         (fun (ctx, idx) (n, _, v) ->
-                          (set_rte_variable idx n (Vdummy) ctx);
+                          (set_rte_variable idx n Vundefined ctx);
                           (ctx, idx - 1))
                         (rctx, n) var in
 

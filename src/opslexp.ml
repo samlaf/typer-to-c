@@ -839,11 +839,11 @@ let rec erase_type (lxp: L.lexp): E.elexp =
         | L.Susp(l, s)                -> erase_type (L.push_susp l s)
 
         (* To be thrown out *)
-        | L.Arrow _                   -> E.Type
-        | L.SortLevel _               -> E.Type
-        | L.Sort _                    -> E.Type
+        | L.Arrow _                   -> E.Type lxp
+        | L.SortLevel _               -> E.Type lxp
+        | L.Sort _                    -> E.Type lxp
         (* Still useful to some extent.  *)
-        | L.Inductive(l, label, _, _) -> E.Inductive(l, label)
+        | L.Inductive(l, label, _, _) -> E.Type lxp
         | L.Metavar _                 -> U.internal_error "Metavar in erase_type"
 
 and filter_arg_list lst =

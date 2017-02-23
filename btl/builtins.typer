@@ -3,7 +3,7 @@
 %*
 %* ---------------------------------------------------------------------------
 %*
-%*      Copyright (C) 2011-2016  Free Software Foundation, Inc.
+%*      Copyright (C) 2011-2017  Free Software Foundation, Inc.
 %*
 %*   Author: Pierre Delaunay <pierre.delaunay@hec.ca>
 %*   Keywords: languages, lisp, dependent types.
@@ -118,7 +118,7 @@ cons = datacons List cons;
 %       Macro
 % -----------------------------------------------------
 
-block_   = Built-in "block_"   (List Sexp -> Sexp);
+%% block_   = Built-in "block_"   (List Pretoken -> Sexp);
 symbol_  = Built-in "symbol_"  (String    -> Sexp);
 string_  = Built-in "string_"  (String    -> Sexp);
 node_    = Built-in "node_"    (Sexp -> List Sexp -> Sexp);

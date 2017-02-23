@@ -657,7 +657,6 @@ and _lexp_str ctx (exp : lexp) : string =
             let h1, decls, idt_lvl =
                 match _lexp_str_decls inter_ctx decls with
                     | h1::decls -> h1, decls, 2
-                    | h1::[] -> h1, [], 1
                     | _ -> "", [], 1 in
 
             let decls = List.fold_left (fun str elem ->
@@ -773,9 +772,6 @@ and _lexp_str_decls ctx decls =
 
     let lexp_str = _lexp_str ctx in
     let sepdecl = (if pp_decl ctx then "\n" else "") in
-    let septp  = match pp_parent ctx with
-      | Some _ -> ""
-      | None -> "\n" in
 
     let type_str name lxp = (if pp_type ctx then (
          name ^ " : " ^ (lexp_str lxp) ^ ";") else "") in
