@@ -1,49 +1,29 @@
 %
-%   f = (qquote (uquote x) * x) (node _*_ [(node_ unquote "x") "x"])
+%   f = (quote (uquote x) * x) (node _*_ [(node_ unquote "x") "x"])
 %
 %   f = node_ "*" cons (x, cons (symbol_ "x") nil))
 %
 %
 %     =>       x
 
-get-head : List Sexp -> Sexp;
-get-head x = case x
-  | cons hd _ => hd
-  | nil => symbol_ "error";
+%% FIXME: Should be List.map.
+List_map : (a : Type) ≡> (b : Type) ≡> (a -> b) -> List a -> List b;
+List_map = lambda a b ≡> lambda f xs -> case xs
+         | nil => nil
+         | cons x xs => cons (f x) (List_map f xs);
 
-symbol  = lambda (y : String)     -> (symbol_ y);
-string  = lambda (y : String)     -> (string_ y);
-integer = lambda (y : Int)        -> (integer_ y);
-float   = lambda (y : Float)      -> (float_ y);
-block   = lambda (y : List Sexp)  -> (block_ y);
+%% FIXME: Should be List.head.
+List_head : (a : Type) ≡> a -> List a -> a;
+List_head = lambda a ≡> lambda x xs -> case xs
+          | cons x _ => x
+          | nil => x;
 
-quote' : List Sexp -> List Sexp;
-
-has-uquote : List Sexp -> Sexp;
-has-uquote = lambda y ->
-  let expr = case y
-    | cons hd tl => hd
-    | nil => symbol_ "uquote expects one argument" in
-      expr;
-
-% traverse nodes
-node : Sexp -> List Sexp -> Sexp;
-node = lambda (op : Sexp) ->
-    lambda (y : List Sexp) ->
-      case (sexp_eq op (symbol_ "uquote"))
-        | true  => has-uquote y
-        | false => node_ op (quote' y);
-
-% tree traversal
-quote' = lambda (x : List Sexp) ->
-  case x
-    | cons hd tl => (
-        let nhd = sexp_dispatch_ (a := Sexp) hd node symbol string integer float block in
-        let ntl = quote' tl in
-          cons nhd ntl)
-
-    | nil => nil;
+quote1 : Sexp -> Sexp;
+quote1 x = let k = lambda (a : Type) ≡> lambda (_ : a) -> x;
+               node op y = case (sexp_eq op (symbol_ "uquote"))
+                           | true  => List_head (symbol_ "<error>") y
+                           | false => node_ (quote1 op) (List_map quote1 y)
+           in sexp_dispatch_ x node k k k k k;
 
 % quote definition
-qq = lambda (x : List Sexp) -> get-head (quote' x);
-quote = Macro_ qq;
+quote = Macro_ (lambda x -> quote1 (List_head (symbol_ "<error>") x));
