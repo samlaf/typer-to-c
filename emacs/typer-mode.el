@@ -1,6 +1,6 @@
 ;;; typer-mode.el --- Typer major mode
 
-;; Copyright (C) 2011-2016  Free Software Foundation, Inc.
+;; Copyright (C) 2011-2017  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords:
@@ -64,7 +64,7 @@
     )
   "Regex patterns for the index menu of `typer-mode'.")
 
-(defvar typer-outline-regexp "(\\|;;;+"
+(defvar typer-outline-regexp "%%%+\\|[^%\s\n\t]......"
   "Regexp for `outline-minor-mode' in `typer-mode'.")
 
 ;; Abbreviations and Skeletons

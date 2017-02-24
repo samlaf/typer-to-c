@@ -1,39 +1,35 @@
-%*
-%*      Typer Compiler
-%*
-%* ---------------------------------------------------------------------------
-%*
-%*      Copyright (C) 2011-2017  Free Software Foundation, Inc.
-%*
-%*   Author: Pierre Delaunay <pierre.delaunay@hec.ca>
-%*   Keywords: languages, lisp, dependent types.
-%*
-%*   This file is part of Typer.
-%*
-%*   Typer is free software; you can redistribute it and/or modify it under the
-%*   terms of the GNU General Public License as published by the Free Software
-%*   Foundation, either version 3 of the License, or (at your option) any
-%*   later version.
-%*
-%*   Typer is distributed in the hope that it will be useful, but WITHOUT ANY
-%*   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-%*   FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-%*   more details.
-%*
-%*   You should have received a copy of the GNU General Public License along
-%*   with this program.  If not, see <http://www.gnu.org/licenses/>.
-%*
-%* ---------------------------------------------------------------------------
-%*
-%*      Description:
-%*          Define builtin types and functions
-%*          This file MUST be correctly typed
-%*
-%* ---------------------------------------------------------------------------
+%%% builtins.typer --- File to initialize the builtin functions
 
-% -----------------------------------------------------
-%       Base Types
-% -----------------------------------------------------
+%%    Copyright (C) 2011-2017  Free Software Foundation, Inc.
+%%
+%% Author: Pierre Delaunay <pierre.delaunay@hec.ca>
+%% Keywords: languages, lisp, dependent types.
+%%
+%% This file is part of Typer.
+%%
+%% Typer is free software; you can redistribute it and/or modify it under the
+%% terms of the GNU General Public License as published by the Free Software
+%% Foundation, either version 3 of the License, or (at your option) any
+%% later version.
+%%
+%% Typer is distributed in the hope that it will be useful, but WITHOUT ANY
+%% WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+%% FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+%% more details.
+%%
+%% You should have received a copy of the GNU General Public License along
+%% with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+%%% Commentary:
+
+%% Define builtin types and functions.
+%% This file MUST be correctly typed, in the sense that many of the types in
+%% here are "axioms" that the type checker must accept without being
+%% able to verify them.
+
+%%% Code:
+
+%%%% Base Types used in builtin functions
 
 % The trivial type which carries no information.
 Unit    = typecons Unit unit;
@@ -109,14 +105,14 @@ sexp_eq   = Built-in   "sexp_eq" (Sexp -> Sexp -> Bool);
 % -----------------------------------------------------
 
 List : Type -> Type;
+%% List a = typecons List (nil) (cons a (List a));
+%% nil = lambda a ≡> datacons (List a) nil;
+%% cons = lambda a ≡> datacons (List a) cons;
 List = typecons (List (a : Type)) (nil) (cons a (List a));
-
 nil = datacons List nil;
 cons = datacons List cons;
 
-% -----------------------------------------------------
-%       Macro
-% -----------------------------------------------------
+%%%% Macro-related definitions
 
 %% block_   = Built-in "block_"   (List Pretoken -> Sexp);
 symbol_  = Built-in "symbol_"  (String    -> Sexp);
@@ -130,7 +126,6 @@ Macro  = typecons (Macro)
 % (macro ((ctx : Context) ≡> (a : Type) ≡> (arg : List Sexp) -> Sexp));
 
 Macro_ = datacons Macro Macro_ ;
-
 
 expand_macro_ : Macro -> List Sexp -> Sexp;
 expand_macro_ m args = case m
@@ -148,10 +143,7 @@ sexp_dispatch_ = Built-in "sexp_dispatch_" (
                          -> a
                      );
 
-
-% -----------------------------------------------------
-%       Monads
-% -----------------------------------------------------
+%%%% Monads
 
 % Builtin bind
 bind = Built-in "bind" (
@@ -176,65 +168,4 @@ open  = Built-in "open"  (String -> String -> IO FileHandle);
 write = Built-in "write" (FileHandle -> String -> IO Unit);
 read  = Built-in "read"  (FileHandle -> Int -> IO String);
 
-% -----------------------------------------------------
-% Logic
-% -----------------------------------------------------
-
-% False should be one of the many empty types.
-% Other common choices are False = ∀a.a and True = ∃a.a.
-False = Void;
-True = Unit;
-
-Not : Type -> Type;
-Not prop = prop -> False;
-
-% Like Bool, except that it additionally carries the meaning of its value.
-Decidable = typecons (Decidable (prop : Type))
-                     (true (p ::: prop)) (false (p ::: Not prop));
-
-
-% -----------------------------------------------------
-% To be removed (used it tests)
-% -----------------------------------------------------
-
-Option = typecons (Option (a : Type)) (none) (some a);
-some = datacons Option some;
-none = datacons Option none;
-
-length : (a : Type) ≡> List a -> Int;
-length = lambda a ≡>
-  lambda xs ->
-    case xs
-      | nil => 0
-      | cons hd tl => (1 + (length tl));
-
-reverse : (a : Type) ≡> List a -> List a -> List a;
-reverse = lambda a ≡> lambda l -> lambda t ->
-    case l
-        | nil => t
-        | cons hd tl => reverse tl (cons hd t);
-
-concat : (a : Type) ≡> List a -> List a -> List a;
-concat = lambda a ≡>
-    lambda l -> lambda t ->
-        let l' = reverse l nil in
-            reverse l' t;
-
-% ML's typical `head` function is not total, so can't be defined
-% as-is in Typer.  There are several workarounds:
-% - Provide a default value : (a : Type) ≡> List a -> a -> a;
-% - Disallow problem case   : (a : Type) ≡> (l : List a) -> (l != nil) -> a;
-% - Return an Option/Error.
-head : (a : Type) ≡> List a -> Option a;
-head = lambda a ≡>
-  lambda xs ->
-    case xs
-      | nil => none
-      | cons hd tl => some hd;
-
-tail : (a : Type) ≡> List a -> List a;
-tail = lambda a ≡>
-  lambda xs ->
-    case xs
-      | nil => nil
-      | cons hd tl => tl;
+%%% builtins.typer ends here.

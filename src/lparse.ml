@@ -1255,11 +1255,11 @@ let default_ectx
       let sxps = lex default_stt pres in
       let nods = sexp_parse_all_to_list default_grammar sxps (Some ";") in
       let pxps = pexp_decls_all nods in
-      let _, lctx = dynamic_bind _parsing_internals true
-                                 (fun () -> lexp_p_decls pxps elctx) in lctx in
+      let _, lctx = lexp_p_decls pxps elctx
+      in lctx in
 
     (* Register predef *)
-    let register_pred elctx =
+    let register_predefs elctx =
       try List.iter (fun name ->
             let idx = senv_lookup name elctx in
             let v = Var((dloc, name), idx) in
@@ -1275,8 +1275,11 @@ let default_ectx
                          (!BI.lmap) lctx in
 
     (* read base file *)
-    let lctx = read_file (!btl_folder ^ "builtins.typer") lctx in
-    let _ = register_pred lctx in
+    let lctx = dynamic_bind _parsing_internals true
+                            (fun ()
+                             -> read_file (!btl_folder ^ "builtins.typer")
+                                          lctx) in
+    let _ = register_predefs lctx in
 
     (* Does not work, not sure why
     let files = ["list.typer"; "quote.typer"; "type.typer"] in
@@ -1284,7 +1287,9 @@ let default_ectx
       read_file (!btl_folder ^ file_name) lctx) lctx files in *)
 
 
-    builtin_size := get_size lctx; lctx
+    builtin_size := get_size lctx;
+    let lctx = read_file (!btl_folder ^ "pervasive.typer") lctx in
+    lctx
 
 let default_rctx =
     let meta_ctx, _ = !global_substitution in
