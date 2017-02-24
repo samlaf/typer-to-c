@@ -1,4 +1,4 @@
-%%% builtins.typer --- File to initialize the builtin functions
+%%% builtins.typer --- Initialize the builtin functions
 
 %%    Copyright (C) 2011-2017  Free Software Foundation, Inc.
 %%
@@ -31,15 +31,15 @@
 
 %%%% Base Types used in builtin functions
 
-% The trivial type which carries no information.
+%% The trivial type which carries no information.
 Unit    = typecons Unit unit;
 unit    = datacons Unit unit;
 
-% The empty type, with no constructors: nothing can have this type.
+%% The empty type, with no constructors: nothing can have this type.
 Void = typecons Void;
 
-% Eq : (l : TypeLevel) ≡> (t : Type_ l) ≡> t -> t -> Type_ l
-% Eq' : (l : TypeLevel) ≡> Type_ l -> Type_ l -> Type_ l
+%% Eq : (l : TypeLevel) ≡> (t : Type_ l) ≡> t -> t -> Type_ l
+%% Eq' : (l : TypeLevel) ≡> Type_ l -> Type_ l -> Type_ l
 Eq_refl = Built-in "Eq.refl"
                    ((l : TypeLevel) ≡> (t : Type_ l) ≡> (x : t)
                     ≡> Eq (t := t) x x);
@@ -54,9 +54,9 @@ Eq_cast = Built-in "Eq.cast"
 Eq_comm : (l : TypeLevel) ≡> (t : Type_ l) ≡> (x : t) ≡> (y : t)
           ≡> (p : Eq (t := t) x y) -> Eq (t := t) y x;
 Eq_comm = lambda l t x y ≡> lambda p ->
-          Eq_cast (f := lambda xy -> Eq (t := t) xy x)
-                  (p := p)
-                  Eq_refl;
+  Eq_cast (f := lambda xy -> Eq (t := t) xy x)
+          (p := p)
+          Eq_refl;
 
 %% General recursion!!
 %% Whether this breaks onsistency or not is a good question.
@@ -86,7 +86,7 @@ Eq_comm = lambda l t x y ≡> lambda p ->
 Y = Built-in "Y" ((a : Type) ≡> (b : Type) ≡> (witness : a -> b) ≡>
                   ((a -> b) -> (a -> b)) -> (a -> b));
 
-% Basic operators
+%% Basic operators
 _+_ = Built-in "Int.+" (Int -> Int -> Int);
 _-_ = Built-in "Int.-" (Int -> Int -> Int);
 _*_ = Built-in "Int.*" (Int -> Int -> Int);
@@ -96,13 +96,13 @@ Bool = typecons (Boolean) (true) (false);
 true = datacons Bool true;
 false = datacons Bool false;
 
-string_eq = Built-in "string_eq" (String -> String -> Bool);
-int_eq    = Built-in    "int_eq" (Int -> Int -> Bool);
-sexp_eq   = Built-in   "sexp_eq" (Sexp -> Sexp -> Bool);
+String_eq = Built-in "String.=" (String -> String -> Bool);
+Int_eq    = Built-in    "Int.=" (Int -> Int -> Bool);
+Sexp_eq   = Built-in   "Sexp.=" (Sexp -> Sexp -> Bool);
 
-% -----------------------------------------------------
-%       List
-% -----------------------------------------------------
+%% -----------------------------------------------------
+%%       List
+%% -----------------------------------------------------
 
 List : Type -> Type;
 %% List a = typecons List (nil) (cons a (List a));
@@ -115,45 +115,43 @@ cons = datacons List cons;
 %%%% Macro-related definitions
 
 %% block_   = Built-in "block_"   (List Pretoken -> Sexp);
-symbol_  = Built-in "symbol_"  (String    -> Sexp);
-string_  = Built-in "string_"  (String    -> Sexp);
-node_    = Built-in "node_"    (Sexp -> List Sexp -> Sexp);
-integer_ = Built-in "integer_" (Int       -> Sexp);
-float_   = Built-in "float_"   (Float     -> Sexp);
+Sexp_symbol  = Built-in "Sexp.symbol"  (String    -> Sexp);
+Sexp_string  = Built-in "Sexp.string"  (String    -> Sexp);
+Sexp_node    = Built-in "Sexp.node"    (Sexp -> List Sexp -> Sexp);
+Sexp_integer = Built-in "Sexp.integer" (Int       -> Sexp);
+Sexp_float   = Built-in "Sexp.float"   (Float     -> Sexp);
 
 Macro  = typecons (Macro)
-  (Macro_ (List Sexp -> Sexp));
-% (macro ((ctx : Context) ≡> (a : Type) ≡> (arg : List Sexp) -> Sexp));
+                  (macro (List Sexp -> Sexp));
+macro = datacons Macro macro;
 
-Macro_ = datacons Macro Macro_ ;
+Macro_expand : Macro -> List Sexp -> Sexp;
+Macro_expand m args = case m
+  | macro f => (f args);
 
-expand_macro_ : Macro -> List Sexp -> Sexp;
-expand_macro_ m args = case m
-  | Macro_ f => (f args);
-
-sexp_dispatch_ = Built-in "sexp_dispatch_" (
-                         (a : Type) ≡>
-                         Sexp
-                         -> (node   : Sexp -> List Sexp -> a)
-                         -> (symbol : String -> a)
-                         -> (string : String -> a)
-                         -> (int    : Int -> a)
-                         -> (float  : Float -> a)
-                         -> (block  : List Sexp -> a)
-                         -> a
-                     );
+Sexp_dispatch = Built-in "Sexp.dispatch" (
+                    (a : Type) ≡>
+                    Sexp
+                    -> (node   : Sexp -> List Sexp -> a)
+                    -> (symbol : String -> a)
+                    -> (string : String -> a)
+                    -> (int    : Int -> a)
+                    -> (float  : Float -> a)
+                    -> (block  : List Sexp -> a)
+                    -> a
+                );
 
 %%%% Monads
 
-% Builtin bind
-bind = Built-in "bind" (
-  (a : Type) ≡>
-  (b : Type) ≡>
-    IO a -> (a -> IO b) -> (IO b));
+%% Builtin bind
+IO_bind = Built-in "IO.bind" (
+              (a : Type) ≡>
+              (b : Type) ≡>
+              IO a -> (a -> IO b) -> (IO b));
 
-% return = Built-in "return" ((a : Type) ≡> a -> IO a);
+%% return = Built-in "return" ((a : Type) ≡> a -> IO a);
 
-% File monad
+%% File monad
 
 %% `runIO` should have type IO Unit -> b -> b
 %% or IO a -> b -> b, which means "run the IO, throw away the result,
@@ -161,11 +159,11 @@ bind = Built-in "bind" (
 %% is actually crucial to make sure the result of runIO is used, otherwise
 %% the whole call would look like a dead function call and could be
 %% optimized away!
-run-io = Built-in "run-io" ((a : Type) ≡> IO Unit -> a -> a);
+IO_run = Built-in "IO.run" ((a : Type) ≡> IO Unit -> a -> a);
 
-% Define operations on file handle.
-open  = Built-in "open"  (String -> String -> IO FileHandle);
-write = Built-in "write" (FileHandle -> String -> IO Unit);
-read  = Built-in "read"  (FileHandle -> Int -> IO String);
+%% Define operations on file handle.
+File_open  = Built-in "File.open"  (String -> String -> IO FileHandle);
+File_write = Built-in "File.write" (FileHandle -> String -> IO Unit);
+File_read  = Built-in "File.read"  (FileHandle -> Int -> IO String);
 
 %%% builtins.typer ends here.

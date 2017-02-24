@@ -1,3 +1,5 @@
+%%% BEWARE: This file is not valid Typer!
+
 type Location
   | location (line : col) (col : Int) (file : String);
 
@@ -48,7 +50,7 @@ sexp_string s =
         (lambda str val -> str ++ " " ++ sexp_string val) "" args in
           "(" ++ (sexp_string op) ++ args ++ ")";
 
-% is there a simplier way ?
+% is there a simpler way ?
 sexp_equal : Sexp -> Sexp -> Bool;
 sexp_equal a b =
   case a

@@ -3,7 +3,7 @@
  *
  * ---------------------------------------------------------------------------
  *
- *      Copyright (C) 2011-2016  Free Software Foundation, Inc.
+ *      Copyright (C) 2011-2017  Free Software Foundation, Inc.
  *
  *   Author: Pierre Delaunay <pierre.delaunay@hec.ca>
  *   Keywords: languages, lisp, dependent types.
@@ -284,13 +284,13 @@ let _ = test_eval_eqv_named
 let _ = (add_test "EVAL" "Monads" (fun () ->
 
     let dcode = "
-      c = bind (open \"./_build/w_file.txt\" \"w\")
-               (lambda f -> write f \"Hello2\");
+      c = IO_bind (File_open \"./_build/w_file.txt\" \"w\")
+               (lambda f -> File_write f \"Hello2\");
     " in
 
     let rctx, ectx = eval_decl_str dcode ectx rctx in
 
-    let rcode = "run-io c 2" in
+    let rcode = "IO_run c 2" in
 
     (* Eval defined lambda *)
     let ret = eval_expr_str rcode ectx rctx in
@@ -344,7 +344,7 @@ let _ = test_eval_eqv_named
   "Implicit Arguments"
 
   "default = new-attribute Macro;
-   default = add-attribute default Int (Macro_ (lambda (lst : List Sexp) -> integer_ 1));
+   default = add-attribute default Int (macro (lambda (lst : List Sexp) -> Sexp_integer 1));
 
    fun = lambda (x : Int) =>
       lambda (y : Int) ->

@@ -3,7 +3,7 @@
 % *
 % * ---------------------------------------------------------------------------
 % *
-% *      Copyright (C) 2011-2016  Free Software Foundation, Inc.
+% *      Copyright (C) 2011-2017  Free Software Foundation, Inc.
 % *
 % *   Author: Pierre Delaunay <pierre.delaunay@hec.ca>
 % *   Keywords: languages, lisp, dependent types.
@@ -73,11 +73,11 @@ fun2 n = case n
 
 % h = fun2 1 2;
 
-% [X] Fatal     [Ln   6, cl   6] LPARSE   Macro_ expects `(List Sexp) -> Sexp`
+% [X] Fatal     [Ln   6, cl   6] LPARSE   macro expects `(List Sexp) -> Sexp`
 %     > Vcons: (cons 2 (nil))
 %     > Root: n
 
-% m = Macro_ (lambda (n : Int) -> n);
+% m = macro (lambda (n : Int) -> n);
 % v = (m 2);
 
 % [X] Fatal     [Ln  43, cl   5] LPARSE   Expected Type Arrow ( _ -> _ )

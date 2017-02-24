@@ -46,6 +46,9 @@
     (modify-syntax-entry ?% "<" st)
     (modify-syntax-entry ?\n ">" st)
     (modify-syntax-entry ?\" "\"" st)
+    (modify-syntax-entry ?\; "." st)
+    (modify-syntax-entry ?\, "." st)
+    (modify-syntax-entry ?\≡ "_" st)
     (modify-syntax-entry ?\\ "\\" st)
     (modify-syntax-entry ?\{ "(}" st)
     (modify-syntax-entry ?\} "){" st)
@@ -166,7 +169,14 @@
   ;; along the lines of what's done in Tuareg.
   (pcase (cons kind token)
     (`(:before . "|") (smie-rule-parent))
+    (`(:before . "(") (if (smie-rule-hanging-p) (smie-rule-parent)))
+    (`(:before . ,(or "case" "lambda"))
+     (and (not (smie-rule-bolp))
+          (smie-rule-prev-p "=" "->" "=>" "≡>")
+          (smie-rule-parent (if (smie-rule-prev-p "=") 2))))
     (`(:after . "=") 2)
+    (`(:after . ,(or "->" "=>" "≡>"))
+     (if (smie-rule-parent-p "|") 2 0))
     ))
 
 ;;;###autoload

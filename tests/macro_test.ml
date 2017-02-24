@@ -3,7 +3,7 @@
  *
  * ---------------------------------------------------------------------------
  *
- *      Copyright (C) 2011-2016  Free Software Foundation, Inc.
+ *      Copyright (C) 2011-2017  Free Software Foundation, Inc.
  *
  *   Author: Pierre Delaunay <pierre.delaunay@hec.ca>
  *   Keywords: languages, lisp, dependent types.
@@ -49,11 +49,11 @@ let _ = (add_test "MACROS" "macros base" (fun () ->
     my_fun = lambda (x : List Sexp) ->
         let hd = (case x
           | cons hd tl => hd
-          | nil => symbol_ \"x\") : Sexp in
-            (node_ (symbol_ \"_*_\")
+          | nil => Sexp_symbol \"x\") : Sexp in
+            (Sexp_node (Sexp_symbol \"_*_\")
               (cons hd (cons hd nil)));
 
-    sqr = Macro_ my_fun;
+    sqr = macro my_fun;
     " in
 
     let rctx, ectx = eval_decl_str dcode ectx rctx in
@@ -72,17 +72,17 @@ let _ = (add_test "MACROS" "macros decls" (fun () ->
     let dcode = "
       decls-impl = lambda (x : List Sexp) ->
         let chain-decl : Sexp -> Sexp -> Sexp;
-            chain-decl a b = node_ (symbol_ \"_;_\") (cons a (cons b nil)) in
+            chain-decl a b = Sexp_node (Sexp_symbol \"_;_\") (cons a (cons b nil)) in
 
         let make-decl : String -> Int -> Sexp;
             make-decl name val =
-          (node_ (symbol_ \"_=_\") (cons (symbol_ name) (cons (integer_ val) nil))) in
+          (Sexp_node (Sexp_symbol \"_=_\") (cons (Sexp_symbol name) (cons (Sexp_integer val) nil))) in
 
         let d1 = make-decl \"a\" 1 in
         let d2 = make-decl \"b\" 2 in
           chain-decl d1 d2;
 
-      my-decls = Macro_ decls-impl;
+      my-decls = macro decls-impl;
 
       my-decls Nat;" in
 

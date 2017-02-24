@@ -1,6 +1,6 @@
 (* builtin.ml --- Infrastructure to define built-in primitives
  *
- *      Copyright (C) 2016  Free Software Foundation, Inc.
+ *      Copyright (C) 2016-2017  Free Software Foundation, Inc.
  *
  *   Author: Pierre Delaunay <pierre.delaunay@hec.ca>
  *   Keywords: languages, lisp, dependent types.
@@ -73,7 +73,7 @@ let predef_name = [
     "true";
     "false";
     "Macro";
-    "expand_macro_";
+    "Macro_expand";
 ]
 
 (* FIXME: Actually, we should map the predefs to *values* since that's

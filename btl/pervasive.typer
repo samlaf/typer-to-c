@@ -36,163 +36,176 @@ Option = typecons (Option (a : Type)) (none) (some a);
 some = datacons Option some;
 none = datacons Option none;
 
+%%% Good 'ol combinators
+
+I : (a : Type) ≡> a -> a;
+I = lambda a ≡> lambda x -> x;
+
+K : (a : Type) ≡> a -> (b : Type) ≡> b -> a;
+K = lambda a ≡> lambda x -> lambda b ≡> lambda y -> x;
+
 %%%% List functions
 
 List_length : (a : Type) ≡> List a -> Int;
 List_length = lambda a ≡> lambda xs -> case xs
-    | nil => 0
-    | cons hd tl => (1 + (List_length tl));
+  | nil => 0
+  | cons hd tl =>
+      (1 + (List_length tl));
 
 List_reverse : (a : Type) ≡> List a -> List a -> List a;
 List_reverse = lambda a ≡> lambda l -> lambda t -> case l
-    | nil => t
-    | cons hd tl => List_reverse tl (cons hd t);
+  | nil => t
+  | cons hd tl => List_reverse tl (cons hd t);
 
 List_concat : (a : Type) ≡> List a -> List a -> List a;
-List_concat = lambda a ≡>
-    lambda l -> lambda t -> List_reverse (List_reverse l nil) t;
+List_concat = lambda a ≡> lambda l -> lambda t ->
+  List_reverse (List_reverse l nil) t;
 
-% ML's typical `head` function is not total, so can't be defined
-% as-is in Typer.  There are several workarounds:
-% - Provide a default value : (a : Type) ≡> List a -> a -> a;
-% - Disallow problem case   : (a : Type) ≡> (l : List a) -> (l != nil) -> a;
-% - Return an Option/Error.
+%% ML's typical `head` function is not total, so can't be defined
+%% as-is in Typer.  There are several workarounds:
+%% - Provide a default value : (a : Type) ≡> a -> List a -> a;
+%% - Disallow problem case   : (a : Type) ≡> (l : List a) -> (l != nil) -> a;
+%% - Return an Option/Error.
 List_head1 : (a : Type) ≡> List a -> Option a;
 List_head1 = lambda a ≡> lambda xs -> case xs
-    | nil => none
-    | cons hd tl => some hd;
-
-List_tail : (a : Type) ≡> List a -> List a;
-List_tail = lambda a ≡> lambda xs -> case xs
-    | nil => nil
-    | cons hd tl => tl;
-
-List_map : (a : Type) ≡> (b : Type) ≡> (a -> b) -> List a -> List b;
-List_map = lambda a b ≡> lambda f xs -> case xs
-         | nil => nil
-         | cons x xs => cons (f x) (List_map f xs);
+  | nil => none
+  | cons hd tl => some hd;
 
 List_head : (a : Type) ≡> a -> List a -> a;
 List_head = lambda a ≡> lambda x xs -> case xs
-          | cons x _ => x
-          | nil => x;
+  | cons x _ => x
+  | nil => x;
+
+List_tail : (a : Type) ≡> List a -> List a;
+List_tail = lambda a ≡> lambda xs -> case xs
+  | nil => nil
+  | cons hd tl => tl;
+
+List_map : (a : Type) ≡> (b : Type) ≡> (a -> b) -> List a -> List b;
+List_map = lambda a b ≡> lambda f xs -> case xs
+  | nil => nil
+  | cons x xs => cons (f x) (List_map f xs);
 
 %%%% Quasi-Quote macro
 
-%%   f = (quote (uquote x) * x) (node _*_ [(node_ unquote "x") "x"])
+%%   f = (quote (uquote x) * x) (node _*_ [(Sexp_node unquote "x") "x"])
 %%
-%%   f = node_ "*" cons (x, cons (symbol_ "x") nil))
+%%   f = Sexp_node "*" cons (x, cons (Sexp_symbol "x") nil))
 %%
 %%     =>       x
 
-quote1 : Sexp -> Sexp;
-quote1 x = let k = lambda (a : Type) ≡> lambda (_ : a) -> x;
-               node op y = case (sexp_eq op (symbol_ "uquote"))
-                           | true  => List_head (symbol_ "<error>") y
-                           | false => node_ (quote1 op) (List_map quote1 y)
-           in sexp_dispatch_ x node k k k k k;
+%% An Sexp which we use to represents an error.
+Sexp_error = Sexp_symbol "<error>";
 
-% quote definition
-quote = Macro_ (lambda x -> quote1 (List_head (symbol_ "<error>") x));
+quote1 : Sexp -> Sexp;
+quote1 x = let k = K x;
+               node op y = case (Sexp_eq op (Sexp_symbol "uquote"))
+                 | true  => List_head Sexp_error y
+                 | false => Sexp_node (quote1 op) (List_map quote1 y)
+           in Sexp_dispatch x node k k k k k;
+
+%% quote definition
+quote = macro (lambda x -> quote1 (List_head Sexp_error x));
 
 %%%% The `type` declaration macro
 
-% build a declaration
-% var-name = value-expr;
+%% build a declaration
+%% var-name = value-expr;
 make-decl : Sexp -> Sexp -> Sexp;
 make-decl var-name value-expr =
-  node_ (symbol_ "_=_")
-    (cons var-name
-      (cons value-expr nil));
+  Sexp_node (Sexp_symbol "_=_")
+            (cons var-name
+                  (cons value-expr nil));
 
 chain-decl : Sexp -> Sexp -> Sexp;
 chain-decl a b =
-    node_ (symbol_ "_;_") (cons a (cons b nil));
+  Sexp_node (Sexp_symbol "_;_") (cons a (cons b nil));
 
-% build datacons
-% ctor-name = datacons type-name ctor-name;
+%% build datacons
+%% ctor-name = datacons type-name ctor-name;
 make-cons : Sexp -> Sexp -> Sexp;
 make-cons ctor-name type-name =
   make-decl ctor-name
-    (node_ (symbol_ "datacons")
-      (cons type-name
-        (cons ctor-name nil)));
+            (Sexp_node (Sexp_symbol "datacons")
+                       (cons type-name
+                             (cons ctor-name nil)));
 
-% buil type annotation
-% var-name : type-expr;
+%% buil type annotation
+%% var-name : type-expr;
 make-ann : Sexp -> Sexp -> Sexp;
 make-ann var-name type-expr =
-  node_ (symbol_ "_:_")
-    (cons var-name
-      (cons type-expr nil));
+  Sexp_node (Sexp_symbol "_:_")
+            (cons var-name
+                  (cons type-expr nil));
 
 type-impl = lambda (x : List Sexp) ->
-  % x follow the mask -> (_|_ Nat zero (succ Nat))
-  %               Type name  --^    ^------^ constructors
+  %% x follow the mask -> (_|_ Nat zero (succ Nat))
+  %%               Type name  --^    ^------^ constructors
 
-  % Return a list contained inside a node sexp
-  let get-list : Sexp -> List Sexp;
-      get-list node = sexp_dispatch_ (a := List Sexp) node
-        (lambda op lst -> lst)    % Nodes
-        (lambda _ -> nil)    % Symbol
-        (lambda _ -> nil)    % String
-        (lambda _ -> nil)    % Integer
-        (lambda _ -> nil)    % Float
-        (lambda _ -> nil) in % List of Sexp
+  %% Return a list contained inside a node sexp
+  let knil = K nil;
+      kerr = K Sexp_error;
 
-  % Get a name from a sexp
-  %   - (name t) -> name
-  %   - name -> name
-  let get-name : Sexp -> Sexp;
+      get-list : Sexp -> List Sexp;
+      get-list node = Sexp_dispatch node
+                                     (lambda op lst -> lst) % Nodes
+                                     knil      % Symbol
+                                     knil      % String
+                                     knil      % Integer
+                                     knil      % Float
+                                     knil;     % List of Sexp
+
+      %% Get a name (symbol) from a sexp
+      %%   - (name t) -> name
+      %%   - name -> name
+      get-name : Sexp -> Sexp;
       get-name sxp =
-        sexp_dispatch_ (a := Sexp) sxp
-          (lambda op lst -> get-name op)   % Nodes
-          (lambda str    -> symbol_ str)   % Symbol
-          (lambda _ -> symbol_ "error")    % String
-          (lambda _ -> symbol_ "error")    % Integer
-          (lambda _ -> symbol_ "error")    % Float
-          (lambda _ -> symbol_ "error") in % List of Sexp
+        Sexp_dispatch sxp
+                       (lambda op _ -> get-name op) % Nodes
+                       (lambda _    -> sxp) % Symbol
+                       kerr  % String
+                       kerr  % Integer
+                       kerr  % Float
+                       kerr; % List of Sexp
 
-  let get-head : List Sexp -> Sexp;
-      get-head x = case x
-        | cons hd _ => hd
-        | nil => symbol_ "error" in
+      get-head = List_head Sexp_error;
 
-  % Get expression
-  let expr = get-head x in
+      %% Get expression
+      expr = get-head x;
 
-  % Expression is  node_ (symbol_ "|") (list)
-  % we only care about the list bit
-  let lst = get-list expr in
+      %% Expression is  Sexp_node (Sexp_symbol "|") (list)
+      %% we only care about the list bit
+      lst = get-list expr;
 
-  % head is (node_ type-name (arg list))
-  let name = get-head lst;
-      ctor = List_tail lst in
+      %% head is (Sexp_node type-name (arg list))
+      name = get-head lst;
+      ctor = List_tail lst;
 
-  let type-name = get-name name in
+      type-name = get-name name;
 
-  % Create the inductive type definition
-  let inductive = node_ (symbol_ "typecons")
-    (cons name ctor) in
+      %% Create the inductive type definition
+      inductive = Sexp_node (Sexp_symbol "typecons")
+                            (cons name ctor);
 
-  let decl  = make-decl type-name inductive in
+      decl  = make-decl type-name inductive;
 
-  % Add constructors
-  let ctors =
-   let for-each : List Sexp -> Sexp -> Sexp;
-       for-each ctr acc = case ctr
-        | cons hd tl => (
-          let acc2 = chain-decl (make-cons (get-name hd) type-name) acc in
-            for-each tl acc2)
-        | nil => acc
-      in for-each ctor (node_ (symbol_ "_;_") nil) in
+      %% Add constructors
+      ctors = let for-each : List Sexp -> Sexp -> Sexp;
+                  for-each ctr acc = case ctr
+                    | cons hd tl =>
+                        let acc2 = chain-decl (make-cons (get-name hd)
+                                                         type-name)
+                                              acc
+                        in for-each tl acc2
+                    | nil => acc
+              in for-each ctor (Sexp_node (Sexp_symbol "_;_") nil)
 
-  % return decls
-    (chain-decl decl       % inductive type declaration
-                ctors);    % constructor declarations
+                          %% return decls
+  in chain-decl decl        % inductive type declaration
+                ctors;      % constructor declarations
 
 
-type_ = Macro_ type-impl;
+type_ = macro type-impl;
 
 %%%% Backward compatibility
 
@@ -202,15 +215,15 @@ tail = List_tail;
 
 %%%% Logic
 
-% False should be one of the many empty types.
-% Other common choices are False = ∀a.a and True = ∃a.a.
+%% False should be one of the many empty types.
+%% Other common choices are False = ∀a.a and True = ∃a.a.
 False = Void;
 True = Unit;
 
 Not : Type -> Type;
 Not prop = prop -> False;
 
-% Like Bool, except that it additionally carries the meaning of its value.
+%% Like Bool, except that it additionally carries the meaning of its value.
 Decidable = typecons (Decidable (prop : Type))
                      (true (p ::: prop)) (false (p ::: Not prop));
 

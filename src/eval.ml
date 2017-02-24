@@ -140,46 +140,43 @@ let _ = add_binary_iop "+"  (+);
 
 let make_symbol loc depth args_val  = match args_val with
   | [Vstring str] -> Vsexp (Symbol (loc, str))
-  | _ -> error loc "symbol_ expects one string as argument"
+  | _ -> error loc "Sexp.symbol expects one string as argument"
 
-let make_node loc depth args_val    =
+let make_node loc depth args_val = match args_val with
+  | [Vsexp (op); lst] ->
+     let args = v2o_list lst in
 
-    let op, tlist = match args_val with
-        | [Vsexp(op); lst] -> op, lst
-        | op::_  -> value_error loc op "node_ expects one 'Sexp' got: "
-        | _ -> typer_unreachable "-" in
+     let s = List.map (fun g -> match g with
+                                | Vsexp(sxp)  -> sxp
+                                (* eval transform sexp into those... *)
+                                (* FIXME: Really?  Why?  *)
+                                | Vint (i)            -> Integer(dloc, i)
+                                | Vstring (s)         -> String(dloc, s)
+                                | _ ->
+                                   (* print_rte_ctx ctx; *)
+                                   value_error loc g "Sexp.node expects `List Sexp` second as arguments") args in
 
-    (* value_print tlist; print_string "\n"; *)
+     Vsexp (Node (op, s))
 
-    let args = v2o_list tlist in
+  | _  -> error loc "Sexp.node expects a `Sexp` and a `List Sexp`"
 
-    let s = List.map (fun g -> match g with
-        | Vsexp(sxp)  -> sxp
-        (* eval transform sexp into those... *)
-        | Vint (i)            -> Integer(dloc, i)
-        | Vstring (s)         -> String(dloc, s)
-        | _ ->
-          (* print_rte_ctx ctx; *)
-          value_error loc g "node_ expects 'List Sexp' second as arguments") args in
-
-        Vsexp(Node(op, s))
 
 let make_string loc depth args_val  = match args_val with
   | [Vstring str] -> Vsexp (String (loc, str))
-  | _ -> error loc "string_ expects one string as argument"
+  | _ -> error loc "Sexp.string expects one string as argument"
 
 let make_integer loc depth args_val = match args_val with
   | [Vint (str)] -> Vsexp (Integer (loc, str))
-  | _ -> error loc "integer_ expects one integer as argument"
+  | _ -> error loc "Sexp.integer expects one integer as argument"
 
 
 let make_float loc depth args_val   = match args_val with
   | [Vfloat x] -> Vsexp (Float (loc, x))
-  | _ -> error loc "float_ expects one float as argument"
+  | _ -> error loc "Sexp.float expects one float as argument"
 
 (* let make_block loc depth args_val   = match args_val with
  *   | [Vblock b] -> Vsexp (Block (loc, b))
- *   | _ -> error loc "float_ expects one block as argument" *)
+ *   | _ -> error loc "Sexp.block expects one block as argument" *)
 
 (* FIXME: We're not using predef here.  This will break if we change
  * the definition of `Bool` in builtins.typer.  *)
@@ -193,31 +190,29 @@ let string_eq loc depth args_val = match args_val with
 
 let int_eq loc depth args_val = match args_val with
   | [Vint i1; Vint i2] -> o2v_bool (i1 = i2)
-  | _ -> error loc "int_eq expects 2 integers"
+  | _ -> error loc "Int.= expects 2 integers"
 
 let sexp_eq loc depth args_val = match args_val with
   | [Vsexp (s1); Vsexp (s2)] -> o2v_bool (sexp_equal s1 s2)
-  | _ -> error loc "sexp_eq expects 2 sexps"
+  | _ -> error loc "Sexp.= expects 2 sexps"
 
-let open_impl loc depth args_val =
+let open_impl loc depth args_val = match args_val with
+  | [Vstring (file); Vstring (mode)] ->
+     (* open file *) (* return a file handle *)
+     Vcommand(fun () ->
+         match mode with
+         | "r" -> Vin (open_in file)
+         | "w" -> Vout (open_out file)
+         | _ -> error loc "wrong open mode")
 
-  let file, mode = match args_val with
-    | [Vstring(file_name); Vstring(mode)] -> file_name, mode
-    | _ -> error loc "open expects 2 strings" in
-
-   (* open file *) (* return a file handle *)
-   Vcommand(fun () ->
-      match mode with
-        | "r" -> Vin(open_in file)
-        | "w" -> Vout(open_out file)
-        | _ -> error loc "wrong open mode")
+  | _ -> error loc "File.open expects 2 strings"
 
 let read_impl loc depth args_val = match args_val with
   (* FIXME: Either rename it to "readline" and drop the second arg,
    * or actually pay attention to the second arg.  *)
   | [Vin channel; Vint n] -> Vstring (input_line channel)
   | _ -> List.iter (fun v -> value_print v; print_string "\n") args_val;
-         error loc "read expects an in_channel"
+         error loc "File.read expects an in_channel"
 
 
 let write_impl loc depth args_val = match args_val with
@@ -225,7 +220,7 @@ let write_impl loc depth args_val = match args_val with
                                    (* FIXME: This should be the unit value!  *)
                                    Vundefined
   | _ -> List.iter (fun v -> value_print v) args_val;
-         error loc "write expects an out_channel and a string"
+         error loc "File.write expects an out_channel and a string"
 
 
 let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type) =
@@ -421,17 +416,17 @@ and bind_impl loc depth args_val =
   | [Vcommand (cmd); callback]
     -> (* bind returns another Vcommand *)
      Vcommand (fun () -> eval_call loc trace_dum depth callback [cmd ()])
-  | _ -> error loc "Wrong number of args or wrong first arg value in `bind`"
+  | _ -> error loc "Wrong number of args or wrong first arg value in `IO.bind`"
 
 and run_io loc depth args_val =
 
   let io, ltp = match args_val with
     | [io; ltp] -> io, ltp
-    | _ -> error loc "run-io expects 2 arguments" in
+    | _ -> error loc "IO.run expects 2 arguments" in
 
   let cmd = match io with
     | Vcommand (cmd) -> cmd
-    | _ -> error loc "run-io expects a monad as first argument" in
+    | _ -> error loc "IO.run expects a monad as first argument" in
 
   (* run given command *)
   let _ = cmd () in
@@ -572,21 +567,21 @@ let nop_fun loc _ vs = match vs with
 let register_built_functions () =
   List.iter (fun (name, f, arity) -> add_builtin_function name f arity)
             [
-              (* ("block_"        , make_block, 1); *)
-              ("symbol_"       , make_symbol, 1);
-              ("string_"       , make_string, 1);
-              ("integer_"      , make_integer, 1);
-              ("float_"        , make_float, 1);
-              ("node_"         , make_node, 2);
-              ("sexp_dispatch_", sexp_dispatch, 7);
-              ("string_eq"     , string_eq, 2);
-              ("int_eq"        , int_eq, 2);
-              ("sexp_eq"       , sexp_eq, 2);
-              ("open"          , open_impl, 2);
-              ("bind"          , bind_impl, 2);
-              ("run-io"        , run_io, 2);
-              ("read"          , read_impl, 2);
-              ("write"         , write_impl, 2);
+              (* ("Sexp.block" , make_block, 1); *)
+              ("Sexp.symbol"   , make_symbol, 1);
+              ("Sexp.string"   , make_string, 1);
+              ("Sexp.integer"  , make_integer, 1);
+              ("Sexp.float"    , make_float, 1);
+              ("Sexp.node"     , make_node, 2);
+              ("Sexp.dispatch" , sexp_dispatch, 7);
+              ("String.="      , string_eq, 2);
+              ("Int.="        , int_eq, 2);
+              ("Sexp.="       , sexp_eq, 2);
+              ("File.open"          , open_impl, 2);
+              ("IO.bind"          , bind_impl, 2);
+              ("IO.run"        , run_io, 2);
+              ("File.read"          , read_impl, 2);
+              ("File.write"         , write_impl, 2);
               ("Eq.refl"       , arity0_fun, 0);
               ("Eq.cast"       , nop_fun, 1);
               ("Y"             , y_operator, 1);

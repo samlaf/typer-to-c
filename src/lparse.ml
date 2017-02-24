@@ -375,7 +375,7 @@ and get_implicit_arg ctx loc name t =
        * to distinguish two cases.
        * Better yet: let's not do any table lookup here.  Instead,
        * call a `default-arg-filler` function, implemented in Typer,
-       * just like `expand_macro_` function.  That one can then look
+       * just like `Macro_expand` function.  That one can then look
        * things up in a table and/or do anything else it wants.  *)
      let v = lexp_expand_macro loc attr [] ctx (Some t) in
 
@@ -868,7 +868,7 @@ and lexp_expand_macro loc macro_funct sargs ctx (ot : ltype option)
 
   (* Build the function to be called *)
   let meta_ctx, _ = !global_substitution in
-  let macro_expand = BI.get_predef "expand_macro_" ctx in
+  let macro_expand = BI.get_predef "Macro_expand" ctx in
   (* FIXME: Rather than remember the lexp of "expand_macro" in predef,
    * we should remember its value so we don't have to re-eval it everytime.  *)
   let macro_expand = lexp_eval meta_ctx ctx macro_expand in
