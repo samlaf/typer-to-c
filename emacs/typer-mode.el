@@ -55,8 +55,17 @@
 (defvar typer-font-lock-keywords
   '(("deftoken[ \t]+\\([^ \t\n]+\\)" (1 font-lock-function-name-face))
     ("^\\([^() \t]+\\)[ \t]" (1 font-lock-function-name-face))
+    ("^%%\\(%+\\)\\(?:.* ---\\)?\\(.*\\)"
+     (2 (typer--section-face (- (match-end 1) (match-beginning 1))) prepend))
     )
   "Keyword highlighting specification for `typer-mode'.")
+
+(defun typer--section-face (length)
+  (pcase length
+    (1 'info-title-1)
+    (2 'info-title-2)
+    (3 'info-title-3)
+    (_ 'info-title-4)))
 
 (defvar typer-imenu-generic-expression
   '(("Special tokens" "^deftoken[ \t]+\\([^\t\n ]+\\)" 1)
