@@ -168,7 +168,7 @@
   ;; FIXME: Improve indent after "lambda α ≡> lambda (xs : List α) ->"
   ;; along the lines of what's done in Tuareg.
   (pcase (cons kind token)
-    (`(:before . "|") (smie-rule-parent))
+    (`(:before . "|") (smie-rule-parent (if (smie-rule-parent-p "type") 2)))
     (`(:before . "(") (if (smie-rule-hanging-p) (smie-rule-parent)))
     (`(:before . ,(or "case" "lambda"))
      (and (not (smie-rule-bolp))
