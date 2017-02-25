@@ -44,19 +44,40 @@ type label = symbol
 module SMap = U.SMap
 
 type elexp =
-    | Imm of sexp
+  (* A constant, either string, integer, or float.  *)
+  | Imm of sexp
 
-    | Builtin of vname
-    | Var of vref
+  (* A builtin constant, typically a function implementedin Ocaml.  *)
+  | Builtin of vname
 
-    | Let of U.location * (vname * elexp) list * elexp
-    | Lambda of vname * elexp
-    | Call of elexp * elexp list
-    | Cons of symbol
-    | Case of U.location * elexp
-              * (U.location * (vname option) list * elexp) SMap.t
-              * (vname option * elexp) option
-    | Type of L.lexp
+  (* A variable reference, using deBruijn indexing.  *)
+  | Var of vref
+
+  (* Recursive `let` binding.  *)
+  | Let of U.location * (vname * elexp) list * elexp
+
+  (* An anonymous function.  *)
+  | Lambda of vname * elexp
+
+  (* A (curried) function call.
+   * In other words,         Call(f, [e1, e2])
+   * is just a shorthand for Call (Call (f, [e1]), [e2]).  *)
+  | Call of elexp * elexp list
+
+  (* A data constructor, such as `cons` or `nil`.  *)
+  | Cons of symbol
+
+  (* Case analysis on an agebraic datatype.
+   * Case (l, e, branches, default)
+   * tests the value of `e`, and either selects the corresponding branch
+   * in `branches` or branches to the `default`.  *)
+  | Case of U.location * elexp
+            * (U.location * (vname option) list * elexp) SMap.t
+            * (vname option * elexp) option
+
+  (* A Type expression.  There's no useful operation we can apply to it,
+   * but they can appear in the code.  *)
+  | Type of L.lexp
 
 let rec elexp_location e =
     match e with
