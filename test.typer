@@ -1,0 +1,25 @@
+%% Little test
+
+make_list : Int -> List Int;
+make_list n = case Int_<= n 0
+  | true => nil
+  | false => let tail = make_list (n - 1);
+                 l = List_length tail
+             in cons n tail;
+
+testcmd : IO Unit;
+testcmd =
+  IO_bind
+      (Sys_cpu_time ())
+      (lambda t_start ->
+       let x = List_length (make_list 1000)
+       in IO_bind
+              (Sys_cpu_time ())
+              (lambda t_end ->
+               let t = Float_- t_end t_start;
+                   stdout = File_stdout ()
+               in IO_bind (File_write stdout (Float_to_string t))
+                          (lambda _ -> File_write stdout "\n")));
+
+test : Unit;
+test = IO_run testcmd ();
