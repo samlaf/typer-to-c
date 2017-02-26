@@ -47,7 +47,7 @@ type elexp =
   (* A constant, either string, integer, or float.  *)
   | Imm of sexp
 
-  (* A builtin constant, typically a function implementedin Ocaml.  *)
+  (* A builtin constant, typically a function implemented in Ocaml.  *)
   | Builtin of vname
 
   (* A variable reference, using deBruijn indexing.  *)

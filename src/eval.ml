@@ -51,7 +51,7 @@ type eval_debug_info = elexp list * elexp list
 let dloc = dummy_location
 let _global_eval_trace = ref ([], [])
 let _global_eval_ctx = ref make_runtime_ctx
-let _eval_max_recursion_depth = ref 255
+let _eval_max_recursion_depth = ref 23000
 
 let builtin_functions
   = ref (SMap.empty : ((location -> eval_debug_info
@@ -120,6 +120,12 @@ let value_error = debug_message error value_name value_string
 let elexp_fatal = debug_message fatal elexp_name elexp_string
 
 
+(* FIXME: We're not using predef here.  This will break if we change
+ * the definition of `Bool` in builtins.typer.  *)
+let ttrue = Vcons ((dloc, "true"), [])
+let tfalse = Vcons ((dloc, "false"), [])
+let o2v_bool b = if b then ttrue else tfalse
+
 (*
  *                  Builtins
  *)
@@ -128,15 +134,41 @@ let add_binary_iop name f =
   let name = "Int." ^ name in
   let f loc (depth : eval_debug_info) (args_val: value_type list) =
     match args_val with
-    | [Vint(v); Vint(w)] -> Vint (f v w)
-    | _ -> error loc ("`" ^ name ^ "` expects 2 Integers arguments") in
+    | [Vint (v); Vint (w)] -> Vint (f v w)
+    | _ -> error loc ("`" ^ name ^ "` expects 2 Int arguments") in
   add_builtin_function name f 2
-
 
 let _ = add_binary_iop "+"  (+);
         add_binary_iop "-"  (-);
         add_binary_iop "*" ( * );
         add_binary_iop "/"  (/)
+
+let add_binary_bool_iop name f =
+  let name = "Int." ^ name in
+  let f loc (depth : eval_debug_info) (args_val: value_type list) =
+    match args_val with
+    | [Vint (v); Vint (w)] -> o2v_bool (f v w)
+    | _ -> error loc ("`" ^ name ^ "` expects 2 Int arguments") in
+  add_builtin_function name f 2
+
+let _ = add_binary_bool_iop "<"  (<);
+        add_binary_bool_iop ">"  (>);
+        add_binary_bool_iop "="  (=);
+        add_binary_bool_iop ">="  (>=);
+        add_binary_bool_iop "<="  (<=)
+
+let add_binary_fop name f =
+  let name = "Float." ^ name in
+  let f loc (depth : eval_debug_info) (args_val: value_type list) =
+    match args_val with
+    | [Vfloat (v); Vfloat (w)] -> Vfloat (f v w)
+    | _ -> error loc ("`" ^ name ^ "` expects 2 Float arguments") in
+  add_builtin_function name f 2
+
+let _ = add_binary_fop "+"  (+.);
+        add_binary_fop "-"  (-.);
+        add_binary_fop "*" ( *. );
+        add_binary_fop "/"  (/.)
 
 let make_symbol loc depth args_val  = match args_val with
   | [Vstring str] -> Vsexp (Symbol (loc, str))
@@ -148,10 +180,6 @@ let make_node loc depth args_val = match args_val with
 
      let s = List.map (fun g -> match g with
                                 | Vsexp(sxp)  -> sxp
-                                (* eval transform sexp into those... *)
-                                (* FIXME: Really?  Why?  *)
-                                | Vint (i)            -> Integer(dloc, i)
-                                | Vstring (s)         -> String(dloc, s)
                                 | _ ->
                                    (* print_rte_ctx ctx; *)
                                    value_error loc g "Sexp.node expects `List Sexp` second as arguments") args in
@@ -178,25 +206,15 @@ let make_float loc depth args_val   = match args_val with
  *   | [Vblock b] -> Vsexp (Block (loc, b))
  *   | _ -> error loc "Sexp.block expects one block as argument" *)
 
-(* FIXME: We're not using predef here.  This will break if we change
- * the definition of `Bool` in builtins.typer.  *)
-let ttrue = Vcons ((dloc, "true"), [])
-let tfalse = Vcons ((dloc, "false"), [])
-let o2v_bool b = if b then ttrue else tfalse
-
 let string_eq loc depth args_val = match args_val with
   | [Vstring s1; Vstring s2] -> o2v_bool (s1 = s2)
   | _ -> error loc "string_eq expects 2 strings"
-
-let int_eq loc depth args_val = match args_val with
-  | [Vint i1; Vint i2] -> o2v_bool (i1 = i2)
-  | _ -> error loc "Int.= expects 2 integers"
 
 let sexp_eq loc depth args_val = match args_val with
   | [Vsexp (s1); Vsexp (s2)] -> o2v_bool (sexp_equal s1 s2)
   | _ -> error loc "Sexp.= expects 2 sexps"
 
-let open_impl loc depth args_val = match args_val with
+let file_open loc depth args_val = match args_val with
   | [Vstring (file); Vstring (mode)] ->
      (* open file *) (* return a file handle *)
      Vcommand(fun () ->
@@ -207,21 +225,20 @@ let open_impl loc depth args_val = match args_val with
 
   | _ -> error loc "File.open expects 2 strings"
 
-let read_impl loc depth args_val = match args_val with
+let file_read loc depth args_val = match args_val with
   (* FIXME: Either rename it to "readline" and drop the second arg,
    * or actually pay attention to the second arg.  *)
   | [Vin channel; Vint n] -> Vstring (input_line channel)
   | _ -> List.iter (fun v -> value_print v; print_string "\n") args_val;
          error loc "File.read expects an in_channel"
 
-
-let write_impl loc depth args_val = match args_val with
-  | [Vout channel; Vstring msg] -> fprintf channel "%s" msg;
-                                   (* FIXME: This should be the unit value!  *)
-                                   Vundefined
+let file_write loc depth args_val = match args_val with
+  | [Vout channel; Vstring msg]
+    -> Vcommand (fun () -> fprintf channel "%s" msg;
+                       (* FIXME: This should be the unit value!  *)
+                       Vundefined)
   | _ -> List.iter (fun v -> value_print v) args_val;
          error loc "File.write expects an out_channel and a string"
-
 
 let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type) =
 
@@ -229,8 +246,10 @@ let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type
     let tloc = elexp_location lxp in
     let eval lxp ctx = _eval lxp ctx trace in
 
-    (if (rec_depth trace) > (!_eval_max_recursion_depth) then
-        fatal tloc "Recursion Depth exceeded");
+    (* This creates an O(N^2) cost for deep recursion because rec_depth
+     * uses `length` on the stack trace.  *)
+    (* (if (rec_depth trace) > (!_eval_max_recursion_depth) then
+     *     fatal tloc "Recursion Depth exceeded"); *)
 
     (* Save current trace in a global variable. If an error occur,
        we will be able to retrieve the most recent trace and context *)
@@ -240,12 +259,12 @@ let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type
     match lxp with
         (*  Leafs           *)
         (* ---------------- *)
-        | Imm(Integer (_, i))       -> Vint(i)
-        | Imm(String (_, s))        -> Vstring(s)
-        | Imm(sxp)                  -> Vsexp(sxp)
+        | Imm(Integer (_, i))       -> Vint (i)
+        | Imm(String (_, s))        -> Vstring (s)
+        | Imm(sxp)                  -> Vsexp (sxp)
         | Cons (label)              -> Vcons (label, [])
-        | Lambda ((_, n), lxp)      -> Closure(n, lxp, ctx)
-        | Builtin ((_, str))        -> Vbuiltin(str)
+        | Lambda ((_, n), lxp)      -> Closure (n, lxp, ctx)
+        | Builtin ((_, str))        -> Vbuiltin (str)
 
         (* Return a value stored in env *)
         | Var((loc, name), idx) as e ->
@@ -409,31 +428,6 @@ and _eval_decls (decls: (vname * elexp) list)
 (* -------------------------------------------------------------------------- *)
 (*              Builtin Implementation  (Some require eval)                   *)
 
-and bind_impl loc depth args_val =
-  let trace_dum = (Var ((loc, "<dummy>"), -1)) in
-
-  match args_val with
-  | [Vcommand (cmd); callback]
-    -> (* bind returns another Vcommand *)
-     Vcommand (fun () -> eval_call loc trace_dum depth callback [cmd ()])
-  | _ -> error loc "Wrong number of args or wrong first arg value in `IO.bind`"
-
-and run_io loc depth args_val =
-
-  let io, ltp = match args_val with
-    | [io; ltp] -> io, ltp
-    | _ -> error loc "IO.run expects 2 arguments" in
-
-  let cmd = match io with
-    | Vcommand (cmd) -> cmd
-    | _ -> error loc "IO.run expects a monad as first argument" in
-
-  (* run given command *)
-  let _ = cmd () in
-
-  (* return given type *)
-    ltp
-
 (* Sexp -> (Sexp -> List Sexp -> Sexp) -> (String -> Sexp) ->
     (String -> Sexp) -> (Int -> Sexp) -> (Float -> Sexp) -> (List Sexp -> Sexp)
         ->  Sexp *)
@@ -544,6 +538,34 @@ and print_eval_trace trace =
     let (a, b) = !_global_eval_trace in
       print_trace " EVAL TRACE " trace a
 
+let io_bind loc depth args_val =
+  let trace_dum = (Var ((loc, "<dummy>"), -1)) in
+
+  match args_val with
+  | [Vcommand cmd; callback]
+    -> (* bind returns another Vcommand *)
+     Vcommand (fun ()
+               -> match eval_call loc trace_dum depth callback [cmd ()] with
+                 | Vcommand cmd -> cmd ()
+                 | _ -> error loc "IO.bind second arg did not return a command")
+  | _ -> error loc "Wrong number of args or wrong first arg value in `IO.bind`"
+
+let io_run loc depth args_val = match args_val with
+    | [Vcommand cmd; v] -> cmd (); v
+    | _ -> error loc "IO.run expects a monad and a function as arguments"
+
+let io_return loc depth args_val = match args_val with
+  | [v] -> Vcommand (fun () -> v)
+  | _ -> error loc "IO.return takes a single argument"
+
+let float_to_string loc depth args_val = match args_val with
+  | [Vfloat x] -> Vstring (string_of_float x)
+  | _ -> error loc "Float.to_string expects one Float arg"
+
+let sys_exit loc depth args_val = match args_val with
+  | [Vint n] -> Vcommand (fun _ -> exit n)
+  | _ -> error loc "Sys.exit takes a single Int argument"
+
 let y_operator loc depth args =
   match args with
   | [f] -> let aname = "<anon>" in
@@ -564,7 +586,7 @@ let nop_fun loc _ vs = match vs with
   | [v] -> v
   | _ -> error loc "Wrong number of argument to nop"
 
-let register_built_functions () =
+let register_builtin_functions () =
   List.iter (fun (name, f, arity) -> add_builtin_function name f arity)
             [
               (* ("Sexp.block" , make_block, 1); *)
@@ -575,18 +597,35 @@ let register_built_functions () =
               ("Sexp.node"     , make_node, 2);
               ("Sexp.dispatch" , sexp_dispatch, 7);
               ("String.="      , string_eq, 2);
-              ("Int.="        , int_eq, 2);
-              ("Sexp.="       , sexp_eq, 2);
-              ("File.open"          , open_impl, 2);
-              ("IO.bind"          , bind_impl, 2);
-              ("IO.run"        , run_io, 2);
-              ("File.read"          , read_impl, 2);
-              ("File.write"         , write_impl, 2);
+              ("Sexp.="        , sexp_eq, 2);
+              ("Float.to_string", float_to_string, 1);
+              ("IO.bind"       , io_bind, 2);
+              ("IO.return"     , io_return, 1);
+              ("IO.run"        , io_run, 2);
+              ("Sys.exit"      , sys_exit, 1);
+              ("File.open"     , file_open, 2);
+              ("File.read"     , file_read, 2);
+              ("File.write"    , file_write, 2);
               ("Eq.refl"       , arity0_fun, 0);
               ("Eq.cast"       , nop_fun, 1);
               ("Y"             , y_operator, 1);
             ]
-let _ = register_built_functions ()
+let _ = register_builtin_functions ()
+
+let builtin_constant v loc depth args_val = match args_val with
+  (* FIXME: Dummy arg because we currently can't define a Builtin
+   * *constant* (except for cases like Eq.refl where the contant is not
+   * actually used).  *)
+  | [_] -> v
+  | _ -> error loc "Builtin almost-constant takes a unit argument"
+
+let register_builtin_constants () =
+  List.iter (fun (name, v) -> add_builtin_function name (builtin_constant v) 1)
+            [
+              ("File.stdout", Vout stdout);
+              ("Sys.cpu_time", Vcommand (fun () -> Vfloat (Sys.time ())))
+            ]
+let _ = register_builtin_constants ()
 
 let eval lxp ctx = _eval lxp ctx ([], [])
 
