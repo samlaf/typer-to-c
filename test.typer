@@ -41,9 +41,8 @@ make_list : Int -> List Int;
 make_list n = case Int_<= n 0
   | true => nil
   | false => let tail = make_list (n - 1);
-                 %% Code inutile qui devrait être éliminé par optimisation.
                  l = List_length tail
-             in cons n tail;
+             in cons (n + l) tail;
 
 %% Code qui exécute le test, mesure le temps et l'imprime.
 
