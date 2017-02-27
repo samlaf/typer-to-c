@@ -166,6 +166,12 @@ let _raw_eval f str lctx rctx =
     let pxps = pexp_decls_all nods in
     let lxps, lctx = lexp_p_decls pxps lctx in
     let elxps = List.map OL.clean_decls lxps in
+    (* At this point, `elxps` is a `(vname * elexp) list list`, where:
+     * - each `(vname * elexp)` is a definition
+     * - each `(vname * elexp) list` is a list of definitions which can
+     *   refer to each other (i.e. they can be mutually recursive).
+     * - hence the overall "list of lists" is a sequence of such
+     *   blocs of mutually-recursive definitions.  *)
     let _ = if !arg_debug then
               List.iter (List.iter (fun ((_, name), e) ->
                              print_string ("ELEXP: "^ name ^ " = ");

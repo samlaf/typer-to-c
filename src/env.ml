@@ -62,8 +62,7 @@ type value_type =
     | Vcommand of (unit -> value_type)
 
  (*  Runtime Environ *)
- and env_cell = (string option * (value_type ref))
- and runtime_env = env_cell M.myers
+ and runtime_env = (string option * (value_type ref)) M.myers
 
 let rec value_equal a b =
   match a, b with
