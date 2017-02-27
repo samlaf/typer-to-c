@@ -6,7 +6,7 @@
 @copying
 .
 
-Copyright @copyright{} 2012-2016  Free Software Foundation, Inc.
+Copyright @copyright{} 2012-2017  Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -123,12 +123,16 @@ Macros receive their arguments in this Sexp form.
 When an Sexp is to be treated as a chunk of code, it gets parsed
 into a Pexp.
 
+@node Syntax
+@section Syntax
+
 @node Core Syntax
-@section Core Syntax
+@subsection Core Syntax
 
 The core syntax of the language is as follows:
 
 @example
+file  ::= decls
 arw   ::= '≡>' | '=>' | '->'
 colon ::= ':::' | '::' | ':'
 exp   ::= id
@@ -138,8 +142,8 @@ exp   ::= id
         | exp ':' exp
         | 'lambda' simple_arg arw exp
         | 'case' exp ('|' pattern '=>' exp)*
-        | 'inductive_' '(' label formal_arg* ')' ('(' label ind_arg* ')')*
-        | 'inductive-cons' id label
+        | 'typecons' '(' label formal_arg* ')' ('(' label ind_arg* ')')*
+        | 'datacons' id label
 pattern ::= id pat_arg*
 decls ::= ε | decl ';' decls
 decl  ::= id ':' exp
@@ -169,7 +173,7 @@ The basic language additionally accepts the following syntactic sugar:
 exp   ::= ... | exp arw exp
         | exp actual_arg+
         | 'lambda' simple_arg+ arw exp
-decl  ::= ... | inductive id formal_arg* ('|' id ind_arg*)
+decl  ::= ... | 'type' id formal_arg* ('|' id ind_arg*)
         | id formal_arg* '=' exp
 @end example
 
@@ -194,6 +198,11 @@ type2)}.
 
 @c @c Get fdl.texi from http://www.gnu.org/licenses/fdl.html
 @c @include fdl.texi
+
+@node Syntax Examples
+@subsection Syntax Examples
+
+A file is made of a sequence of declarations.
 
 @node Index
 @unnumbered Index

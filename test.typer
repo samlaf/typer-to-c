@@ -1,14 +1,56 @@
-%% Little test
+%%% test.typer --- Un petit programme d'exemple
+
+%% Définition de la fonction `max`.
+%% Typer n'a pas (encore) de `if`.
+max : Int -> Int -> Int;
+max a b = case Int_< a b
+  | true => b
+  | false => a;
+
+%% Définition du type `Tree a b`.  La déclaration du type de `Tree`
+%% est nécessaire pour permettre la définition récursive du type.
+%% Et oui, les types ont aussi un type.
+Tree : Type -> Type -> Type;
+type Tree (a : Type) (b : Type)
+  | leaf
+  | node (key : a) (value : b) (left : Tree a b) (right : Tree a b);
+
+%% Profondeur d'un arbre.
+tree_depth : (a : Type) ≡> (b : Type) ≡> Tree a b -> Int;
+tree_depth = lambda a b ≡> lambda t -> case t
+  | leaf => 0
+  | node _ _ l r
+    => let ld = tree_depth l;
+           lr = tree_depth r
+       in max ld lr;
+
+%% Construction d'un arbre ordonné par des entiers.
+tree_insert : (b : Type) ≡> Tree Int b -> Int -> b -> Tree Int b;
+tree_insert = lambda b ≡> lambda t k v -> case t
+  | leaf => node k v leaf leaf
+  | node k1 v1 l r
+    => (case Int_< k1 k
+        | true => node k1 v1 (tree_insert l k v) r
+        | false => (case Int_< k k1
+                    | true => node k1 v1 l (tree_insert r k v)
+                    | false => node k v l r));
+
+%% Exemple de code pour tester la performance.
 
 make_list : Int -> List Int;
 make_list n = case Int_<= n 0
   | true => nil
   | false => let tail = make_list (n - 1);
+                 %% Code inutile qui devrait être éliminé par optimisation.
                  l = List_length tail
              in cons n tail;
 
+%% Code qui exécute le test, mesure le temps et l'imprime.
+
 testcmd : IO Unit;
 testcmd =
+  %% Eh non, Typer n'a pas encore de syntaxe pratique pour écrire du code
+  %% monadique.  Donc si vous trouver ça très laid, c'est normal.
   IO_bind
       (Sys_cpu_time ())
       (lambda t_start ->

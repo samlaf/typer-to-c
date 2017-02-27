@@ -136,7 +136,7 @@ and elexp_string lxp =
         | Imm(s)          -> sexp_string s
         | Builtin((_, s)) -> s
         | Var((_, s), i)  -> s ^ "[" ^ string_of_int i ^ "]"
-        | Cons((_, s))    -> s
+        | Cons((_, s))    -> "datacons(" ^ s ^")"
 
         | Lambda((_, s), b)  -> "lambda " ^ s ^ " -> " ^ (elexp_string b)
 

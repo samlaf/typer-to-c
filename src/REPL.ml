@@ -177,7 +177,7 @@ let _raw_eval f str lctx rctx =
                              print_string ("ELEXP: "^ name ^ " = ");
                              EL.elexp_print e;
                              print_string "\n"))
-                        elxps in
+                        elxps; flush stdout in
     let rctx = eval_decls_toplevel elxps rctx in
         (* This is for consistency with ieval *)
         [], lctx, rctx
