@@ -1,9 +1,0 @@
-accumulate : (t : Type) ≡> (acc-op : (t -> t -> t)) -> (init : t) -> (list : List t) -> t;
-accumulate = lambda (t : Type) ≡>
-  lambda (acc-op : (t -> t -> t)) ->
-    lambda (init : t) ->
-      lambda (list : List t) ->
-        case list
-          | cons hd tl => accumulate acc-op (acc-op init hd) tl
-          | nil        => init;
-

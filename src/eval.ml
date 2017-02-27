@@ -243,13 +243,12 @@ let file_write loc depth args_val = match args_val with
 let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type) =
 
     let trace = append_eval_trace trace lxp in
-    let tloc = elexp_location lxp in
     let eval lxp ctx = _eval lxp ctx trace in
 
     (* This creates an O(N^2) cost for deep recursion because rec_depth
      * uses `length` on the stack trace.  *)
     (* (if (rec_depth trace) > (!_eval_max_recursion_depth) then
-     *     fatal tloc "Recursion Depth exceeded"); *)
+     *     fatal (elexp_location lxp) "Recursion Depth exceeded"); *)
 
     (* Save current trace in a global variable. If an error occur,
        we will be able to retrieve the most recent trace and context *)
@@ -551,7 +550,7 @@ let io_bind loc depth args_val =
   | _ -> error loc "Wrong number of args or wrong first arg value in `IO.bind`"
 
 let io_run loc depth args_val = match args_val with
-    | [Vcommand cmd; v] -> cmd (); v
+    | [Vcommand cmd; v] -> let _ = cmd () in v
     | _ -> error loc "IO.run expects a monad and a function as arguments"
 
 let io_return loc depth args_val = match args_val with
@@ -641,8 +640,8 @@ let eval_decls decls ctx = _eval_decls decls ctx ([], [])
 
 let eval_decls_toplevel (decls: (vname * elexp) list list) ctx =
   (* Add toplevel decls function *)
-  List.fold_left (fun ctx decls ->
-    eval_decls decls ctx) ctx decls
+  List.fold_left (fun ctx decls -> eval_decls decls ctx)
+                 ctx decls
 
 (*  Eval a list of lexp *)
 let eval_all lxps rctx silent =

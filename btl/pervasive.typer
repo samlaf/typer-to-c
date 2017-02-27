@@ -86,6 +86,11 @@ List_map = lambda a b ≡> lambda f xs -> case xs
   | nil => nil
   | cons x xs => cons (f x) (List_map f xs);
 
+List_foldl : (a : Type) ≡> (b : Type) ≡> (a -> b -> a) -> a -> List b -> a;
+List_foldl = lambda a b ≡> lambda f i xs -> case xs
+  | nil => i
+  | cons x xs => List_foldl f (f i x) xs;
+
 %%%% Quasi-Quote macro
 
 %%   f = (quote (uquote x) * x) (node _*_ [(Sexp_node unquote "x") "x"])

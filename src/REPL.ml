@@ -60,6 +60,8 @@ module EL = Elexp
 (* how to handle arrow keys ? *)
 let _history = ref []
 
+let arg_batch = ref false
+
 let print_input_line i =
     print_string "  In[";
     ralign_print_int i 2;
@@ -163,6 +165,12 @@ let _raw_eval f str lctx rctx =
     let pxps = pexp_decls_all nods in
     let lxps, lctx = lexp_p_decls pxps lctx in
     let elxps = List.map OL.clean_decls lxps in
+    (* At this point, `elxps` is a `(vname * elexp) list list`, where:
+     * - each `(vname * elexp)` is a definition
+     * - each `(vname * elexp) list` is a list of definitions which can
+     *   refer to each other (i.e. they can be mutually recursive).
+     * - hence the overall "list of lists" is a sequence of such
+     *   blocs of mutually-recursive definitions.  *)
     let rctx = eval_decls_toplevel elxps rctx in
         (* This is for consistency with ieval *)
         [], lctx, rctx
@@ -258,6 +266,8 @@ let arg_files = ref []
 
 (* ./typer [options] files *)
 let arg_defs = [
+    ("--batch", Arg.Set arg_batch, "Don't run the interactive loop");
+    (* ("--debug", Arg.Set arg_debug, "Print the Elexp representation") *)
     (*"-I",
         Arg.String (fun f -> searchpath := f::!searchpath),
         "Append a directory to the search path"*)
@@ -272,17 +282,20 @@ let main () =
     let ectx = default_ectx in
     let rctx = default_rctx in
 
-    print_string (make_title " TYPER REPL ");
-    print_string _welcome_msg;
-    print_string (make_sep '-');
+    if not !arg_batch then
+      (print_string (make_title " TYPER REPL ");
+       print_string _welcome_msg;
+       print_string (make_sep '-');
+       flush stdout);
+
+    let (i, ectx, rctx) = readfiles (List.rev !arg_files) (1, ectx, rctx)
+                                    (not !arg_batch) in
+
     flush stdout;
 
-    let (i, ectx, rctx) = readfiles (List.rev !arg_files) (1, ectx, rctx) true in
-
-    flush stdout;
-
-    (* Initiate REPL. This will allow us to inspect interpreted code *)
-    repl i ectx rctx
+    if not !arg_batch then
+      (* Initiate REPL. This will allow us to inspect interpreted code *)
+      repl i ectx rctx
 
 
 let _ = main ()

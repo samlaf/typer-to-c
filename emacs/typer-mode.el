@@ -56,7 +56,10 @@
   "Syntax table for `typer-mode'.")
 
 (defvar typer-font-lock-keywords
-  '(("deftoken[ \t]+\\([^ \t\n]+\\)" (1 font-lock-function-name-face))
+  `(("deftoken[ \t]+\\([^ \t\n]+\\)" (1 font-lock-function-name-face))
+    (,(concat "\\_<" (regexp-opt '("type" "case" "lambda" "let" "in")) "\\_>")
+     (0 font-lock-keyword-face))
+    ("\\_<type[ \t]+\\([^ \t\n]+\\)" (1 font-lock-function-name-face))
     ("^\\([^() \t]+\\)[ \t]" (1 font-lock-function-name-face))
     ("^%%\\(%+\\)\\(?:.* ---\\)?\\(.*\\)"
      (2 (typer--section-face (- (match-end 1) (match-beginning 1))) prepend))
