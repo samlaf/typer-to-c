@@ -56,6 +56,7 @@ open Env
 open Debruijn
 module OL = Opslexp
 module EL = Elexp
+module C = Cexp
 
 (* how to handle arrow keys ? *)
 let _history = ref []
