@@ -60,6 +60,10 @@ type cexp =
   (* A (non-curried) function call.  *)
   | Call of cexp * cexp list
 
+  (* A data constructor, such as `cons` or `nil`,
+   * together with its number of expected args.  *)
+  | MkRecord of symbol * int
+
   (* Extract field of a record.  *)
   | Select of cexp * int
 

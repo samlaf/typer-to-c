@@ -74,7 +74,7 @@ type ltype = lexp
    | Inductive of U.location * label
                   * ((arg_kind * vname * ltype) list) (* formal Args *)
                   * ((arg_kind * vname option * ltype) list) SMap.t
-   | Cons of lexp * symbol (* = Type info * ctor_name  *)
+   | Cons of lexp * symbol * int option (* = Type info * ctor_name * size *)
    | Case of U.location * lexp
              * ltype (* The type of the return value of all branches *)
              * (U.location * (arg_kind * vname option) list * lexp) SMap.t
@@ -164,7 +164,7 @@ let mkLet (l, ds, e)           = hc (Let (l, ds, e))
 let mkArrow (k, v, t1, l, t2)  = hc (Arrow (k, v, t1, l, t2))
 let mkLambda (k, v, t, e)      = hc (Lambda (k, v, t, e))
 let mkInductive (l, n, a, cs)  = hc (Inductive (l, n, a, cs))
-let mkCons (t, n)              = hc (Cons (t, n))
+let mkCons (t, n, s)           = hc (Cons (t, n, s))
 let mkCase (l, e, rt, bs, d)   = hc (Case (l, e, rt, bs, d))
 let mkMetavar (n, s, v, t)     = hc (Metavar (n, s, v, t))
 let mkCall (f, es)
@@ -212,7 +212,7 @@ let rec lexp_location e =
   | Lambda (_,(l,_),_,_) -> l
   | Call (f,_) -> lexp_location f
   | Inductive (l,_,_,_) -> l
-  | Cons (_,(l,_)) -> l
+  | Cons (_,(l,_), _) -> l
   | Case (l,_,_,_,_) -> l
   | Susp (e, _) -> lexp_location e
   (* | Susp (_, e) -> lexp_location e *)
@@ -261,7 +261,7 @@ let rec push_susp e s =            (* Push a suspension one level down.  *)
                                L.rev ncase)
                             cases in
       mkInductive (l, label, nargs, ncases)
-  | Cons (it, name) -> Cons (mkSusp it s, name)
+  | Cons (it, name, size) -> Cons (mkSusp it s, name, size)
   | Case (l, e, ret, cases, default)
     -> mkCase (l, mkSusp e s, mkSusp ret s,
               SMap.map (fun (l, cargs, e)
@@ -325,7 +325,7 @@ let clean meta_ctx e =
                                L.rev ncase)
                             cases in
       mkInductive (l, label, nargs, ncases)
-    | Cons (it, name) -> Cons (clean s it, name)
+    | Cons (it, name, size) -> Cons (clean s it, name, size)
     | Case (l, e, ret, cases, default)
       -> mkCase (l, clean s e, clean s ret,
                 SMap.map (fun (l, cargs, e)
@@ -374,7 +374,7 @@ let rec lexp_unparse lxp =
     | Imm (sexp) -> Pimm (sexp)
     | Builtin (s, _, _) -> Pbuiltin s
     | Var ((loc, name), _) -> Pvar((loc, name))
-    | Cons (t, (l, name))
+    | Cons (t, (l, name), _)
       -> Pcall (pdatacons, [pexp_unparse (lexp_unparse t); Symbol (l, name)])
     | Lambda (kind, vdef, ltp, body) ->
       Plambda(kind, vdef, Some (lexp_unparse ltp), lexp_unparse body)
@@ -683,7 +683,7 @@ and _lexp_str ctx (exp : lexp) : string =
             (keyword "lambda ") ^ arg ^ " " ^ (kind_str k) ^ newline ^
                 (make_indent 1) ^ (lexp_stri 1 lbody)
 
-        | Cons(t, (_, ctor_name)) ->
+        | Cons(t, (_, ctor_name), _) ->
             (keyword "datacons ") ^ (lexp_str t) ^ " " ^ ctor_name
 
         | Call(fname, args) ->
@@ -822,7 +822,8 @@ let rec eq meta_ctx e1 e2 =
         && SMap.equal (List.for_all2 (fun (ak1, _, e1) (ak2, _, e2)
                                      -> ak1 = ak2 && eq e1 e2))
                      cases1 cases2
-    | (Cons (t1, (_, l1)), Cons (t2, (_, l2))) -> eq t1 t2 && l1 = l2
+    | (Cons (t1, (_, l1), s1), Cons (t2, (_, l2), s2))
+      -> eq t1 t2 && l1 = l2 && s1 = s2
     | (Case (_, e1, r1, cases1, def1), Case (_, e2, r2, cases2, def2))
       -> eq e1 e2 && eq r1 r2
         && SMap.equal (fun (_, fields1, e1) (_, fields2, e2)

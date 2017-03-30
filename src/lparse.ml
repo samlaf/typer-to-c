@@ -597,7 +597,7 @@ and check_case rtype (loc, target, ppatterns) ctx =
         let lctor, ct = infer pctor ctx in
         let meta_ctx, _ = !global_substitution in
         match OL.lexp_whnf lctor (ectx_to_lctx ctx) meta_ctx with
-        | Cons (it', (_, cons_name))
+        | Cons (it', (_, cons_name), _)
           -> let _ = match Unif.unify it' it (ectx_to_lctx ctx) meta_ctx with
               | (None | Some (_, _::_))
                 -> lexp_error loc lctor
@@ -1132,7 +1132,17 @@ let sform_datacons ctx loc sargs ot =
   | [t; Symbol ((sloc, cname) as sym)]
     -> let pt = pexp_parse t in
       let idt, _ = infer pt ctx in
-      (mkCons (idt, sym), Lazy)
+      let size =
+        let meta_ctx, _ = !global_substitution in
+        match OL.lexp_whnf idt (ectx_to_lctx ctx) meta_ctx with
+        | Inductive (_, _, _, constructors)
+          -> (try let fields = SMap.find cname constructors in
+                 Some (List.fold_left (fun s (ak, _, _)
+                                       -> if ak = Aerasable then s else s + 1)
+                                      0 fields)
+             with Not_found -> None)
+        | _ -> None in
+      (mkCons (idt, sym, size), Lazy)
 
   | [_;_] -> sexp_error loc "Second arg of ##constr should be a symbol";
             sform_dummy_ret loc

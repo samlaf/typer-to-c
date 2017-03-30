@@ -169,8 +169,8 @@ let lexp_whnf e (ctx : DB.lexp_context) meta_ctx : lexp =
                                         name ^ "in case expression");
                          mkCase (l, e, rt, branches, default) in
      (match e' with
-      | Cons (_, (_, name)) -> reduce name []
-      | Call (Cons (_, (_, name)), aargs) -> reduce name aargs
+      | Cons (_, (_, name), _) -> reduce name []
+      | Call (Cons (_, (_, name), _), aargs) -> reduce name aargs
       | _ -> mkCase (l, e, rt, branches, default))
   | Metavar (idx, s, _, _)
     -> (try lexp_whnf (mkSusp (L.VMap.find idx meta_ctx) s) ctx
@@ -281,7 +281,8 @@ let rec conv_p' meta_ctx (ctx : DB.lexp_context) (vs : set_plexp) e1 e2 : bool =
                           args1 args2
           | _,_ -> false in
         l1 == l2 && conv_args ctx vs' args1 args2
-    | (Cons (t1, (_, l1)), Cons (t2, (_, l2))) -> l1 = l2 && conv_p t1 t2
+    | (Cons (t1, (_, l1), s1), Cons (t2, (_, l2), s2))
+      -> l1 = l2 && s1 = s2 && conv_p t1 t2
     (* FIXME: Various missing cases, such as Case.  *)
     | (_, _) -> false
 
@@ -564,7 +565,7 @@ let rec check' meta_ctx erased ctx e =
                                      ^ string_of_int diff ^ " cases missing"))
        | _,_ -> U.msg_error "TC" l "Case on a non-inductive type!");
       ret
-  | Cons (t, (l, name))
+  | Cons (t, (l, name), size)
     -> (match lexp_whnf t ctx meta_ctx with
        | Inductive (l, _, fargs, constructors)
          -> (try
@@ -574,17 +575,24 @@ let rec check' meta_ctx erased ctx e =
                 | [] -> []
                 | (ak, vd, _)::fargs -> (ak, Var (vd, start_index))
                                        :: indtype fargs (start_index - 1) in
-              let rec fieldargs ftypes =
+              let rec fieldargs s ftypes =
                 match ftypes with
                 | [] -> let nargs = List.length fieldtypes + List.length fargs in
+                       (match size with
+                        | Some size when s != size
+                          -> U.msg_error "TC" l
+                                        ("Constructor `" ^ name
+                                         ^ "` with wrong number of args")
+                        | _ -> ());
                        mkCall (mkSusp t (S.shift nargs),
                                indtype fargs (nargs - 1))
                 | (ak, vd, ftype) :: ftypes
                   -> mkArrow (ak, vd, ftype, lexp_location ftype,
-                             fieldargs ftypes) in
+                             fieldargs (if ak = P.Aerasable then s else s + 1)
+                                       ftypes) in
               let rec buildtype fargs =
                 match fargs with
-                | [] -> fieldargs fieldtypes
+                | [] -> fieldargs 0 fieldtypes
                 | (ak, ((l,_) as vd), atype) :: fargs
                   -> mkArrow (P.Aerasable, Some vd, atype, l,
                              buildtype fargs) in
@@ -682,7 +690,7 @@ let rec fv (e : lexp) : (DB.set * mv_set) =
                                              fv_empty fields)))
               cases s in
         fv_hoist alen s
-    | Cons (t, _) -> fv t
+    | Cons (t, _, _) -> fv t
     | Case (_, e, t, cases, def)
       -> let s = fv_union (fv e) (fv t) in
         let s = match def with
@@ -781,7 +789,7 @@ let rec get_type meta_ctx ctx e =
       let tct = arg_loop args ctx in
       tct
   | Case (l, e, ret, branches, default) -> ret
-  | Cons (t, (l, name))
+  | Cons (t, (l, name), _)
     -> (match lexp_whnf t ctx meta_ctx with
        | Inductive (l, _, fargs, constructors)
          -> (try
@@ -818,7 +826,8 @@ let rec erase_type (lxp: L.lexp): E.elexp =
         | L.Imm(s)           -> E.Imm(s)
         | L.Builtin(v, _, _) -> E.Builtin(v)
         | L.Var(v)           -> E.Var(v)
-        | L.Cons(_, s)       -> E.Cons(s)
+        | L.Cons(_, n, Some s) -> E.Cons(n, s)
+        | L.Cons(_, n, None) -> U.internal_error "Non-sized Cons in erase_type"
         | L.Lambda (P.Aerasable, _, _, body) ->
           (* The var shouldn't appear in body, basically, but we need
            * to adjust the debruijn indices of other vars, hence the subst.  *)

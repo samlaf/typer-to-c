@@ -262,7 +262,7 @@ let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type
         | Imm(String (_, s))        -> Vstring (s)
         | Imm(Float (_, n))         -> Vfloat (n)
         | Imm(sxp)                  -> Vsexp (sxp)
-        | Cons (label)              -> Vcons (label, [])
+        | Cons (label, _)           -> Vcons (label, [])
         | Lambda ((_, n), lxp)      -> Closure (n, lxp, ctx)
         | Builtin ((_, str))        -> Vbuiltin (str)
 

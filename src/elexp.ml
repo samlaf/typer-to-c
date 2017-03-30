@@ -65,7 +65,7 @@ type elexp =
   | Call of elexp * elexp list
 
   (* A data constructor, such as `cons` or `nil`.  *)
-  | Cons of symbol
+  | Cons of symbol * int
 
   (* Case analysis on an agebraic datatype.
    * Case (l, e, branches, default)
@@ -87,7 +87,7 @@ let rec elexp_location e =
         | Let (l,_,_) -> l
         | Lambda ((l,_),_) -> l
         | Call (f,_) -> elexp_location f
-        | Cons ((l,_)) -> l
+        | Cons ((l,_), _) -> l
         | Case (l,_,_,_) -> l
         | Type e -> L.lexp_location e
 
@@ -136,7 +136,7 @@ and elexp_string lxp =
         | Imm(s)          -> sexp_string s
         | Builtin((_, s)) -> s
         | Var((_, s), i)  -> s ^ "[" ^ string_of_int i ^ "]"
-        | Cons((_, s))    -> "datacons(" ^ s ^")"
+        | Cons((_, s), _)    -> "datacons(" ^ s ^")"
 
         | Lambda((_, s), b)  -> "lambda " ^ s ^ " -> " ^ (elexp_string b)
 
