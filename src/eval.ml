@@ -37,6 +37,7 @@ open Sexp
 open Pexp       (* Arg_kind *)
 open Lexp       (* Varbind *)
 
+open Cexp
 open Elexp
 open Builtin
 open Grammar
@@ -240,7 +241,28 @@ let file_write loc depth args_val = match args_val with
   | _ -> List.iter (fun v -> value_print v) args_val;
          error loc "File.write expects an out_channel and a string"
 
-let rec _eval lxp (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type) =
+let generator_index = ref 0
+let rec generate_ctxname () =
+  let idx = !generator_index in
+  generator_index := !generator_index + 1;
+  "ctx" ^ string_of_int(idx);;
+
+let rec _compile (lxp : elexp) (ctxname : vname)
+	: (cexp) =
+  (*  let trace = append_eval_trace trace lxp in *)
+  (*  let compile lxp ctx = _compile lxp ctx trace in *)
+
+  match lxp with
+  | Imm(Integer (l, i)) -> Cexp.Imm(Integer (l, i))
+  | _ -> Cexp.Imm(Integer (dummy_location, 3))
+and _compile_top lxp ctxname : ctexp =
+  match lxp with 
+  | Lambda (name, lxp) -> let ctxname = (dloc, generate_ctxname()) in
+			  Cexp.Lambda([ctxname; name],
+				      _compile lxp ctxname)
+  | _ -> Cexp.Cexp(_compile lxp ctxname)
+		  
+let rec _eval (lxp : elexp) (ctx : Env.runtime_env) (trace : eval_debug_info): (value_type) =
 
     let trace = append_eval_trace trace lxp in
     let eval lxp ctx = _eval lxp ctx trace in

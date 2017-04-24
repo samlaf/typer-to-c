@@ -2,6 +2,7 @@
 
 %% Définition de la fonction `max`.
 %% Typer n'a pas (encore) de `if`.
+
 max : Int -> Int -> Int;
 max a b = case Int_< a b
   | true => b

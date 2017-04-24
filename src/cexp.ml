@@ -83,3 +83,16 @@ type ctexp =
 
 (* The content of a whole file.  *)
 type cfile = (vname * ctexp) list
+
+let rec cexp_print lxp = print_string (cexp_string lxp)
+and cexp_string lxp =
+  match lxp with
+  | Imm(s)  ->  sexp_string s
+  | _ -> "TODO"
+and ctexp_print lxp = print_string (ctexp_string lxp)
+and ctexp_string lxp =
+  match lxp with
+  | Lambda(name_list, c)
+    -> List.iter (fun (l,n) -> print_string (n ^ " ")) name_list;
+       cexp_string c
+  | Cexp(c) -> cexp_string c

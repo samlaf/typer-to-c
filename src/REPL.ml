@@ -63,6 +63,7 @@ let _history = ref []
 
 let arg_batch = ref false
 let arg_debug = ref false
+let arg_compile = ref false		    
 
 let print_input_line i =
     print_string "  In[";
@@ -179,6 +180,13 @@ let _raw_eval f str lctx rctx =
                              EL.elexp_print e;
                              print_string "\n"))
                         elxps; flush stdout in
+    let _ = if !arg_compile then
+	      List.iter (List.iter (fun ((_, name), e) ->
+				    print_string ("C CODE = ");
+				    Cexp.ctexp_print
+				      (_compile_top e (dloc, "ooo"));
+				    print_string "\n"))
+			elxps; flush stdout in
     let rctx = eval_decls_toplevel elxps rctx in
         (* This is for consistency with ieval *)
         [], lctx, rctx
@@ -217,6 +225,7 @@ let readfiles files (i, lctx, rctx) prt =
         print_string "  In["; ralign_print_int i 2;  print_string "] >> ";
         print_string ("%readfile " ^ file); print_string "\n";));
 
+	
         try let (ret, lctx, rctx) = eval_file file lctx rctx in
             (List.iter (print_eval_result i) ret; (i + 1, lctx, rctx))
         with
@@ -275,7 +284,8 @@ let arg_files = ref []
 (* ./typer [options] files *)
 let arg_defs = [
     ("--batch", Arg.Set arg_batch, "Don't run the interactive loop");
-    ("--debug", Arg.Set arg_debug, "Print the Elexp representation")
+    ("--debug", Arg.Set arg_debug, "Print the Elexp representation");
+    ("--compile", Arg.Set arg_compile, "Compile to C")
     (*"-I",
         Arg.String (fun f -> searchpath := f::!searchpath),
         "Append a directory to the search path"*)
