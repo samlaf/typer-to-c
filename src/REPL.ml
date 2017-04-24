@@ -181,12 +181,14 @@ let _raw_eval f str lctx rctx =
                              print_string "\n"))
                         elxps; flush stdout in
     let _ = if !arg_compile then
-	      List.iter (List.iter (fun ((_, name), e) ->
-				    print_string ("C CODE = ");
-				    Cexp.ctexp_print
-				      (_compile_top e (dloc, "ooo"));
-				    print_string "\n"))
-			elxps; flush stdout in
+	      print_string "C CODE:\n";
+    	      List.iter (List.iter (fun ((l,name), e) ->
+				    print_string name;
+				    print_string " ";
+  				    Cexp.ctexp_print
+    				      (_compile_top e (l,name));
+    				    print_string "\n"))
+    			elxps; flush stdout in
     let rctx = eval_decls_toplevel elxps rctx in
         (* This is for consistency with ieval *)
         [], lctx, rctx

@@ -86,13 +86,21 @@ type cfile = (vname * ctexp) list
 
 let rec cexp_print lxp = print_string (cexp_string lxp)
 and cexp_string lxp =
+  let str_args lst =
+        List.fold_left (fun str lxp ->
+            str ^ " " ^ (cexp_string lxp)) "" lst in
   match lxp with
   | Imm(s)  ->  sexp_string s
+  | Var(_, ((_, s), i)) -> s 
+  | Call(fct, args) ->
+     (cexp_string fct) ^ "(" ^ (str_args args) ^ ")"
   | _ -> "TODO"
-and ctexp_print lxp = print_string (ctexp_string lxp)
-and ctexp_string lxp =
+and ctexp_print lxp =
   match lxp with
   | Lambda(name_list, c)
-    -> List.iter (fun (l,n) -> print_string (n ^ " ")) name_list;
-       cexp_string c
-  | Cexp(c) -> cexp_string c
+    -> print_string "(";
+       List.iter (fun (l,n) -> print_string (n ^ " ")) name_list;
+       print_string "){";
+       cexp_print c;
+       print_string "}"
+  | Cexp(c) -> cexp_print c

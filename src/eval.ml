@@ -253,7 +253,13 @@ let rec _compile (lxp : elexp) (ctxname : vname)
   (*  let compile lxp ctx = _compile lxp ctx trace in *)
 
   match lxp with
-  | Imm(Integer (l, i)) -> Cexp.Imm(Integer (l, i))
+  | Imm(sxp) -> Cexp.Imm(sxp)
+  | Type e -> Cexp.Type(e)
+  | Var(vref) -> Cexp.Var(true, vref)
+  | Call(f, args) ->
+     Cexp.Call(_compile f ctxname,
+	       Cexp.Var(false, (ctxname,0)) ::
+		 List.map (fun e -> _compile e ctxname) args)
   | _ -> Cexp.Imm(Integer (dummy_location, 3))
 and _compile_top lxp ctxname : ctexp =
   match lxp with 
